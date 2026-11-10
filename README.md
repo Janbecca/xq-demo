@@ -1,0 +1,35 @@
+# 摄像机智护
+
+用 Expo SDK 54、React Native 和 TypeScript 实现的 iOS / Android 摄像机 App 前端，附 Web 预览。
+
+## 启动
+
+```powershell
+npm ci
+npm start
+```
+
+使用与项目 SDK 匹配的 Expo Go。电脑和手机连接同一网络，Android 用 Expo Go 扫描终端二维码，iOS 用相机扫码后在 Expo Go 中打开。连接 Android 模拟器后可以用 `npm run android`，macOS 上可以用 `npm run ios` 启动 iOS 模拟器。
+
+在电脑浏览器里预览时运行 `npm run web`。
+
+## 已实现的流程
+
+- 初次打开时点击首页的「＋」，通过模拟扫码、设备发现、选择 Wi-Fi、连接和设置名称添加一台样例摄像机。设备名称在本次运行期间有效，刷新后可重走流程。Wi-Fi 密码仅在当前表单中临时使用，继续配网时清空。
+- 配网后进入 Miya管家的对话，领取 AI 权益，最多选择 4 个关注事件。文字输入停顿后自动提示标准事件，也可添加自定义关注。服务逐项开启后在对话中命名，欢迎页展示 2 秒并自动进入首页。权益领取、文字匹配和服务配置均为本地演示。
+- 首页进入实时视频、回放和动态。实时页可演示画质、云台、全屏、抓拍、录制、声音和对讲控件。
+- 在 AI 智护中打开智能检测，编辑或新增分级告警。规则支持场景、类型、开始和结束时间、重复日期与通知方式。保存后的规则在当前运行期间有效。
+- 智搜支持输入和快捷问题，以本地样例展示匹配和无结果状态。
+- 看护报告可在家人守护和宠物周报之间切换，并查看时长、次数与每日趋势。
+
+摄像机画面取自参考图。实时控制、回放、AI 搜索和推送配置是本地演示，真实设备、视频流、AI 服务和通知尚未接入。
+
+## 检查
+
+```powershell
+npm run typecheck
+npm run build:web
+npx expo export --platform ios --platform android --output-dir dist/native
+```
+
+`src/demo.ts` 集中管理摄像机画面、告警选项和初始规则，`src/Insights.tsx` 内含周报样例。

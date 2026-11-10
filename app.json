@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "摄像机智护",
+    "slug": "camera-care",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.cameracare.demo",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.cameracare.demo",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
+    }
+  }
+}
