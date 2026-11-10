@@ -5,6 +5,7 @@ import { media } from './demo';
 import { color, Icon, IconButton, Label, s, type IconName } from './ui';
 
 export type CameraTab = '实时视频' | '回放' | '动态';
+export type PlaybackSample = { title: string; time: string };
 type Toast = (message: string) => void;
 const tabs: CameraTab[] = ['实时视频', '回放', '动态'];
 const shortcuts = [
@@ -20,9 +21,9 @@ const navigation: { label: string; name: IconName }[] = [
   { label: '我的', name: 'happy-outline' },
 ];
 
-export function Home({ deviceName, openCamera, openCare, toast, safeBottom, banner, dismissBanner }: {
+export function Home({ deviceName, openCamera, openCare, openMiya, toast, safeBottom, banner, dismissBanner }: {
   deviceName: string;
-  openCamera: (tab: CameraTab) => void; openCare: () => void; toast: Toast; safeBottom: number;
+  openCamera: (tab: CameraTab) => void; openCare: () => void; openMiya: () => void; toast: Toast; safeBottom: number;
   banner: boolean; dismissBanner: () => void;
 }) {
   return <View style={s.fill}>
@@ -94,6 +95,11 @@ export function Home({ deviceName, openCamera, openCare, toast, safeBottom, bann
         {index === 3 && <View style={[c.redDot, c.navDot]} />}
       </Pressable>)}
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="打开 Miya 管家" onPress={openMiya}
+      style={({ pressed }) => [c.miya, { bottom: safeBottom + 65 }, pressed && s.pressed]}>
+      <Image source={media.miya} style={c.miyaAvatar} resizeMode="contain" />
+      <Label size={10} bold>Miya 管家</Label>
+    </Pressable>
   </View>;
 }
 
@@ -116,8 +122,8 @@ const placement = StyleSheet.create({
   left: { left: '4%', top: '50%', marginTop: -22 }, right: { right: '4%', top: '50%', marginTop: -22 },
 });
 
-export function Camera({ initialTab, back, toast, safeBottom, searchSample }: {
-  initialTab: CameraTab; back: () => void; toast: Toast; safeBottom: number; searchSample?: boolean;
+export function Camera({ initialTab, back, toast, safeBottom, playbackSample }: {
+  initialTab: CameraTab; back: () => void; toast: Toast; safeBottom: number; playbackSample?: PlaybackSample;
 }) {
   const [tab, setTab] = useState(initialTab);
   const [quality, setQuality] = useState(true);
@@ -142,7 +148,7 @@ export function Camera({ initialTab, back, toast, safeBottom, searchSample }: {
       <Image source={media.frame} resizeMode="cover" style={[c.fillImage, {
         transform: [{ scale: offset.x || offset.y ? 1.13 : 1 }, { translateX: offset.x * -6 }, { translateY: offset.y * -6 }],
       }]} />
-      <Label size={9} tint="#fff" style={c.timestamp}>{tab === '回放' && searchSample ? '06.25 18:32 · 样例' : '2026-11-09 09:10:05'}</Label>
+      <Label size={9} tint="#fff" style={c.timestamp}>{tab === '回放' && playbackSample ? playbackSample.time + ' · 样例' : '2026-11-09 09:10:05'}</Label>
       <View style={c.playerTop}>
         <IconButton name="chevron-back" label="返回" tint="#fff" onPress={full ? () => setFull(false) : back} />
         <IconButton name="settings-outline" label="摄像机设置" tint="#fff" onPress={() => toast('摄像机设置 · 功能展示')} />
@@ -183,7 +189,7 @@ export function Camera({ initialTab, back, toast, safeBottom, searchSample }: {
         </View>
       </> : <View style={c.empty}>
         <Icon name={tab === '回放' ? 'film-outline' : 'notifications-outline'} size={42} tint="#abb2b6" />
-        <Label tint={color.muted}>{tab === '回放' ? searchSample ? '写作业 · 样例回放预览' : '暂无回放录像' : '暂无设备动态'}</Label>
+        <Label tint={color.muted}>{tab === '回放' ? playbackSample ? playbackSample.title + ' · 样例回放预览' : '暂无回放录像' : '暂无设备动态'}</Label>
       </View>}
     </>}
   </View>;
@@ -196,7 +202,11 @@ const c = StyleSheet.create({
   deviceName: { flexShrink: 1 },
   headerActions: { flexDirection: 'row' },
   redDot: { position: 'absolute', right: 8, top: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff494b' },
-  homeContent: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 22, gap: 11 },
+  homeContent: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 76, gap: 11 },
+  miya: { position: 'absolute', right: 13, zIndex: 2, alignItems: 'center', justifyContent: 'center', gap: 2,
+    minWidth: 61, paddingHorizontal: 7, paddingVertical: 5, borderRadius: 19, backgroundColor: '#fff', borderWidth: 1,
+    borderColor: '#e0e9e7', boxShadow: '0 4px 13px rgba(20, 61, 73, 0.18)' },
+  miyaAvatar: { width: 44, height: 44 },
   preview: { aspectRatio: 1.885, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   play: { backgroundColor: '#141517c9', height: 27, width: 27, borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingLeft: 2 },
   banner: { aspectRatio: 4.04, borderRadius: 13, overflow: 'hidden' },

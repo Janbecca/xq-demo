@@ -38,14 +38,15 @@ export function PrimaryButton({ label, action, disabled }: { label: string; acti
   </Pressable>;
 }
 
-export function Header({ title, back, onTitlePress, compact = false }: {
-  title: string; back: () => void; onTitlePress?: () => void; compact?: boolean;
+export function Header({ title, back, onTitlePress, compact = false, right }: {
+  title: string; back: () => void; onTitlePress?: () => void; compact?: boolean; right?: ReactNode;
 }) {
   return <View style={[s.header, compact && s.compactHeader]}>
     <View style={s.back}><IconButton name="chevron-back" size={24} label="返回" onPress={back} /></View>
     {onTitlePress ? <Pressable accessibilityRole="button" onPress={onTitlePress} style={s.titleButton}>
       <Label size={18} bold numberOfLines={1} style={s.titleText}>{title}</Label><Icon name="chevron-down" size={16} />
     </Pressable> : <Label size={compact ? 16 : 20} bold>{title}</Label>}
+    {right && <View style={s.headerRight}>{right}</View>}
   </View>;
 }
 
@@ -115,6 +116,7 @@ export const s = StyleSheet.create({
   titleButton: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '76%' },
   titleText: { flexShrink: 1 },
   back: { position: 'absolute', left: 9, zIndex: 1 },
+  headerRight: { position: 'absolute', right: 9 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   rowEnd: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7 },
   rowValue: { flexShrink: 1 },

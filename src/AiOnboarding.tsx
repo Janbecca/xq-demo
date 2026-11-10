@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { callAlertCategories } from './demo';
+import { callAlertCategories, media } from './demo';
 import { findMiyaEvents, presetCallAlerts } from './miyaEvents';
 import { DeviceName } from './Pairing';
 import { color, Icon, IconButton, Label, PrimaryButton, s, Segments } from './ui';
 
-const avatar = require('../assets/miya-avatar.png');
+const avatar = media.miya;
 const categoryLabels = callAlertCategories.map(category => category.label);
 const capabilities = ['AI智能检测', 'AI智能告警', 'AI智搜', '家人/宠物守护周报'];
 const eventLimit = 4;
