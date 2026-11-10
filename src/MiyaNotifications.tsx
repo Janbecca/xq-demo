@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, PanResponder, Platform, Pressable, Scro
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { callAlertCategories, timeText, weekdays, type Time } from './demo';
 import { channels, defaultTask, maxCustomMinutes, minutesOf, spanMinutes, taskDays, taskHours, timeAt, type MiyaTask } from './miyaDemo';
-import { color, Header, Icon, IconButton, Label, PrimaryButton, s, Segments, Sheet } from './ui';
+import { color, Header, Icon, IconButton, Label, PrimaryButton, s, Segments, SelectionCheck, Sheet } from './ui';
 
 const categoryNames = callAlertCategories.map(category => category.label);
 const dialSize = 240;
@@ -19,18 +19,21 @@ function toggle<T>(items: T[], value: T) {
 
 export function MiyaTasks({ tasks, add, edit }: { tasks: MiyaTask[]; add: () => void; edit: (task: MiyaTask) => void }) {
   return <View style={s.fill}>
-    <ScrollView contentContainerStyle={n.content}>
-      <Label size={13} tint="#697477">可为不同关注事件分别设置通知方式和时段。</Label>
-      {tasks.map(task => <Pressable key={task.id} accessibilityRole="button" onPress={() => edit(task)} style={[s.card, n.task]}>
-        <View style={n.taskIcon}><Icon name="notifications-outline" tint={color.green} size={20} /></View>
-        <View style={n.taskText}>
-          <Label bold>{task.events.join('、')}</Label>
-          <Label size={13} tint="#687276">{taskDays(task.days)} · {taskHours(task)}</Label>
-          <Label size={13} tint="#687276">{task.channels.join('、')}</Label>
-        </View>
-        <Icon name="chevron-forward" tint={color.muted} size={17} />
-      </Pressable>)}
-      {!tasks.length && <Label size={14} tint={color.muted} style={n.empty}>暂无通知任务</Label>}
+    <ScrollView contentContainerStyle={n.content} showsVerticalScrollIndicator={false}>
+      <Label size={14} tint={color.secondaryText} style={n.sectionText}>可为不同关注事件分别设置通知方式和时段。</Label>
+      <View style={[s.card, n.list]}>
+        {tasks.map((task, index) => <Pressable key={task.id} accessibilityRole="button" onPress={() => edit(task)}
+          style={({ pressed }) => [n.task, index < tasks.length - 1 && s.divider, pressed && s.pressed]}>
+          <View style={s.mintBadge}><Icon name="notifications-outline" tint={color.mintText} size={19} /></View>
+          <View style={n.taskText}>
+            <Label size={17}>{task.events.join('、')}</Label>
+            <Label size={13} tint={color.secondaryText}>{taskDays(task.days)} · {taskHours(task)}</Label>
+            <Label size={13} tint={color.secondaryText}>{task.channels.join('、')}</Label>
+          </View>
+          <Icon name="chevron-forward" tint={color.muted} size={17} />
+        </Pressable>)}
+        {!tasks.length && <Label size={14} tint={color.muted} style={n.empty}>暂无通知任务</Label>}
+      </View>
     </ScrollView>
     <View style={n.footer}><PrimaryButton label="新建通知任务" action={add} /></View>
   </View>;
@@ -78,7 +81,7 @@ function DialHandle({ value, label, shortLabel, onChange, setDragging }: {
       onChange(timeAt((value + delta + dayMinutes) % dayMinutes));
     }}
     style={[n.handle, touchStyle, { left: point.x - 15, top: point.y - 15 }]}>
-    <Label size={11} bold tint={color.green}>{shortLabel}</Label>
+    <Label size={11} bold tint={color.mintText}>{shortLabel}</Label>
   </View>;
 }
 
@@ -95,22 +98,22 @@ function TimeDial({ start, end, setStart, setEnd, setDragging }: {
   const duration = total ? (hours ? hours + '小时' : '') + (minutes ? minutes + '分钟' : '') : '0分钟';
   return <View style={n.dial}>
     <Svg width={dialSize} height={dialSize} pointerEvents="none">
-      <Circle cx={center} cy={center} r={radius} fill="none" stroke="#e7efed" strokeWidth={16} />
+      <Circle cx={center} cy={center} r={radius} fill="none" stroke={color.canvas} strokeWidth={16} />
       {total > 0 && <Path d={`M ${a.x} ${a.y} A ${radius} ${radius} 0 ${total > 720 ? 1 : 0} 1 ${b.x} ${b.y}`}
-        fill="none" stroke={total > maxCustomMinutes ? '#e6b6ad' : '#8edacc'} strokeWidth={16} />}
+        fill="none" stroke={total > maxCustomMinutes ? '#e6b6ad' : '#a8e8da'} strokeWidth={16} />}
       {Array.from({ length: 48 }, (_, index) => {
         const inner = dialPoint(index * 30, index % 2 ? 89 : 86);
         const outer = dialPoint(index * 30, 96);
-        return <Line key={index} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke={index % 2 ? '#a8b9b5' : '#697c77'} />;
+        return <Line key={index} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke={index % 2 ? color.muted : color.secondaryText} />;
       })}
       {Array.from({ length: 12 }, (_, index) => {
         const point = dialPoint(index * 120, 69);
         return <SvgText key={index} x={point.x} y={point.y + 3} textAnchor="middle" fontSize={10}
-          fill="#596f69">{String(index * 2).padStart(2, '0')}</SvgText>;
+          fill={color.secondaryText}>{String(index * 2).padStart(2, '0')}</SvgText>;
       })}
     </Svg>
     <View pointerEvents="none" style={n.dialText}>
-      <Label size={12}>通知时长</Label><Label size={21} bold>{duration}</Label><Label size={11} tint="#687276">最长 8 小时</Label>
+      <Label size={12}>通知时长</Label><Label size={21} bold>{duration}</Label><Label size={11} tint={color.secondaryText}>最长 8 小时</Label>
     </View>
     <DialHandle value={from} label="表盘开始时间" shortLabel="始" onChange={setStart} setDragging={setDragging} />
     <DialHandle value={to} label="表盘结束时间" shortLabel="终" onChange={setEnd} setDragging={setDragging} />
@@ -155,49 +158,53 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.fill}>
     <Header title={initial ? '编辑通知任务' : '新建通知任务'} back={cancel}
       right={initial && <IconButton name="trash-outline" tint="#a04a45" label="删除任务" onPress={() => setDeleting(true)} />} />
-    <ScrollView contentContainerStyle={n.content} scrollEnabled={!dragging} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={n.content} scrollEnabled={!dragging} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <Label size={15} bold style={n.sectionText}>关注事件</Label>
       <View style={[s.card, n.card]}>
-        <View style={n.sectionHeader}>
-          <Label bold>关注事件</Label>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: selecting }} onPress={() => setSelecting(!selecting)}>
-            <Label tint={color.green} size={14}>{selecting ? '收起' : '选择事件'}</Label>
-          </Pressable>
-        </View>
-        <Label size={13} tint="#687276">{events.length ? events.join('、') : '请选择需要关注的事件'}</Label>
+        <Pressable accessibilityRole="button" accessibilityLabel={selecting ? '收起' : '选择事件'} accessibilityState={{ expanded: selecting }}
+          onPress={() => setSelecting(!selecting)} style={[n.sectionHeader, n.eventSelection, selecting && s.divider]}>
+          <Label size={15} style={n.taskText} tint={events.length ? color.text : color.secondaryText}>
+            {events.length ? events.join('、') : '请选择需要关注的事件'}
+          </Label>
+          <Label tint={color.mintText} size={14}>{selecting ? '收起' : '选择事件'}</Label>
+          <Icon name={selecting ? 'chevron-up' : 'chevron-down'} size={15} tint={color.muted} />
+        </Pressable>
         {selecting && <>
           <Segments labels={categoryNames} selected={category} onChange={setCategory} equal />
           {callAlertCategories[category].groups.map(group => <View key={group.label} style={n.group}>
-            {categoryNames[category] !== group.label && <Label size={12} tint="#687276">{group.label}</Label>}
-            {group.events.map(event => <CheckRow key={event} label={event} checked={events.includes(event)} onPress={() => setEvents(items => toggle(items, event))} />)}
+            {categoryNames[category] !== group.label && <Label size={13} tint={color.secondaryText}>{group.label}</Label>}
+            {group.events.map((event, index) => <CheckRow key={event} label={event} checked={events.includes(event)}
+              last={index === group.events.length - 1} onPress={() => setEvents(items => toggle(items, event))} />)}
           </View>)}
         </>}
       </View>
-      <View style={[s.card, n.card]}>
-        <Label bold>通知方式</Label>
-        {channels.map(channel => <CheckRow key={channel} label={channel} checked={methods.includes(channel)}
-          onPress={() => setMethods(items => toggle(items, channel))} />)}
+      <Label size={15} bold style={[n.sectionText, n.sectionGap]}>通知方式</Label>
+      <View style={[s.card, n.list]}>
+        {channels.map((channel, index) => <CheckRow key={channel} label={channel} checked={methods.includes(channel)}
+          last={index === channels.length - 1} onPress={() => setMethods(items => toggle(items, channel))} />)}
       </View>
+      <Label size={15} bold style={[n.sectionText, n.sectionGap]}>通知时段</Label>
       <View style={[s.card, n.card]}>
-        <View style={n.sectionHeader}><Label bold>通知时段</Label><Label size={12} tint="#687276">{taskDays(days)}</Label></View>
+        <View style={n.sectionHeader}><Label size={15}>重复日期</Label><Label size={13} tint={color.secondaryText}>{taskDays(days)}</Label></View>
         <View style={n.days}>
           {weekdays.map(day => <Pressable key={day} accessibilityRole="checkbox" accessibilityLabel={day} accessibilityState={{ checked: days.includes(day) }}
             onPress={() => setDays(current => weekdays.filter(item => item === day ? !current.includes(day) : current.includes(item)))}
             style={[n.day, days.includes(day) && n.daySelected]}>
-            <Label size={13} tint={days.includes(day) ? '#fff' : color.text}>{day.slice(1)}</Label>
+            <Label size={14} tint={days.includes(day) ? color.mintText : color.text}>{day.slice(1)}</Label>
           </Pressable>)}
         </View>
         <Segments labels={['全天', '自定义时段']} selected={allDay ? 0 : 1} onChange={index => setAllDay(index === 0)} equal />
-        {allDay ? <Label size={13} tint="#687276">在所选日期的 00:00–24:00 接收通知</Label> : <>
+        {allDay ? <Label size={13} tint={color.secondaryText}>在所选日期的 00:00–24:00 接收通知</Label> : <>
           <View style={n.times}>
-            <View style={n.time}><Label size={13}>开始</Label><TextInput style={n.timeInput} accessibilityLabel="开始时间"
+            <View style={n.time}><Label size={13} numberOfLines={1} style={n.timeLabel}>开始</Label><TextInput style={n.timeInput} accessibilityLabel="开始时间"
               value={startText} onChangeText={setStartText} maxLength={5} keyboardType="numbers-and-punctuation"
               onBlur={() => { if (start) setStart(start); }} /></View>
-            <View style={n.time}><Label size={13}>结束</Label><TextInput style={n.timeInput} accessibilityLabel="结束时间"
+            <View style={n.time}><Label size={13} numberOfLines={1} style={n.timeLabel}>结束</Label><TextInput style={n.timeInput} accessibilityLabel="结束时间"
               value={endText} onChangeText={setEndText} maxLength={5} keyboardType="numbers-and-punctuation"
               onBlur={() => { if (end) setEnd(end); }} /></View>
           </View>
           <TimeDial start={start ?? base.start} end={end ?? base.end} setStart={setStart} setEnd={setEnd} setDragging={setDragging} />
-          <Label size={12} tint="#687276" style={n.caption}>时区 Asia/Shanghai · 可拖动起止时间</Label>
+          <Label size={12} tint={color.secondaryText} style={n.caption}>时区 Asia/Shanghai · 可拖动起止时间</Label>
           {timeError && <Label size={12} tint="#a04039" accessibilityLiveRegion="polite">{timeError}</Label>}
         </>}
       </View>
@@ -213,36 +220,39 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
   </KeyboardAvoidingView>;
 }
 
-function CheckRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onPress} style={n.check}>
-    <Icon name={checked ? 'checkbox' : 'square-outline'} tint={checked ? color.green : color.muted} size={21} />
-    <Label size={14}>{label}</Label>
+function CheckRow({ label, checked, last, onPress }: { label: string; checked: boolean; last: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onPress} style={[n.check, !last && s.divider]}>
+    <Label size={16}>{label}</Label><SelectionCheck checked={checked} />
   </Pressable>;
 }
 
 const n = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  card: { padding: 13, gap: 9 },
-  task: { flexDirection: 'row', alignItems: 'center', padding: 13, minHeight: 77, gap: 10 },
+  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 8 },
+  sectionText: { marginHorizontal: 16, lineHeight: 21 },
+  sectionGap: { marginTop: 6 },
+  card: { padding: 16, gap: 9 },
+  list: { paddingHorizontal: 16 },
+  task: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, minHeight: 82, gap: 10 },
   taskText: { flex: 1, gap: 2 },
-  taskIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e2f7f2' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  eventSelection: { minHeight: 42, paddingBottom: 5 },
   group: { gap: 3 },
-  check: { flexDirection: 'row', alignItems: 'center', minHeight: 37, gap: 8 },
+  check: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 45, gap: 8 },
   days: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
-  day: { flex: 1, maxWidth: 39, aspectRatio: 1, backgroundColor: '#f1f3f4', borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  daySelected: { backgroundColor: color.green },
+  day: { flex: 1, maxWidth: 39, aspectRatio: 1, backgroundColor: color.canvas, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  daySelected: { backgroundColor: color.mintSurface, borderWidth: 1, borderColor: color.mint },
   times: { flexDirection: 'row', gap: 8 },
-  time: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#f4f6f6', borderRadius: 9 },
-  timeInput: { minWidth: 64, minHeight: 39, padding: 5, textAlign: 'center', color: color.text, fontVariant: ['tabular-nums'] },
+  time: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: color.canvas, borderRadius: 9 },
+  timeLabel: { flexShrink: 0 },
+  timeInput: { width: 68, flexShrink: 1, minHeight: 39, padding: 5, textAlign: 'center', color: color.text, fontVariant: ['tabular-nums'] },
   dial: { width: dialSize, height: dialSize, alignSelf: 'center' },
   dialText: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  handle: { position: 'absolute', width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: color.green,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  handle: { position: 'absolute', width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: color.mint,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: color.surface },
   caption: { textAlign: 'center' },
   footer: { paddingHorizontal: 16, paddingVertical: 9 },
   footerRow: { flexDirection: 'row', gap: 10 },
-  cancel: { flex: 1, minHeight: 51, borderRadius: 28, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  cancel: { flex: 1, minHeight: 51, borderRadius: 28, backgroundColor: color.surface, alignItems: 'center', justifyContent: 'center' },
   error: { marginHorizontal: 16, marginTop: 5 },
   empty: { padding: 18, textAlign: 'center' },
   deletePrompt: { paddingHorizontal: 18, paddingBottom: 20 },

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { alertTypes, scenes, timeText, twoDigits, weekdays, type Rule, type Scene, type Time } from './demo';
-import { color, Icon, Label, Row, s, Sheet } from './ui';
+import { color, Icon, Label, Row, s, SelectionCheck, Sheet } from './ui';
 
 type Selection =
   | { kind: 'type'; value: string }
@@ -110,7 +110,7 @@ export function RuleEditor({ initial, save }: { initial: Rule; save: (rule: Rule
         const checked = sheet.value.includes(day);
         return <Pressable key={day} accessibilityRole="checkbox" accessibilityState={{ checked }} style={[e.option, s.divider]}
           onPress={() => setSheet({ kind: 'days', value: checked ? sheet.value.filter(item => item !== day) : [...sheet.value, day] })}>
-          <Label size={17}>{day}</Label><Check checked={checked} />
+          <Label size={17}>{day}</Label><SelectionCheck checked={checked} />
         </Pressable>;
       })}</View>
     </Sheet>}
@@ -118,14 +118,10 @@ export function RuleEditor({ initial, save }: { initial: Rule; save: (rule: Rule
       <View style={e.options}>{channels.map(channel => <Pressable key={channel} accessibilityRole="radio"
         accessibilityState={{ checked: sheet.value === channel }} style={[e.option, s.divider]}
         onPress={() => setSheet({ kind: 'channel', value: channel })}>
-        <Label size={17}>{channel}</Label><Check checked={sheet.value === channel} />
+        <Label size={17}>{channel}</Label><SelectionCheck checked={sheet.value === channel} />
       </Pressable>)}</View>
     </Sheet>}
   </>;
-}
-
-function Check({ checked }: { checked: boolean }) {
-  return <View style={[e.check, checked && e.checkSelected]}>{checked && <Icon name="checkmark" size={17} tint="#fff" />}</View>;
 }
 
 const e = StyleSheet.create({
@@ -155,6 +151,4 @@ const e = StyleSheet.create({
   chipCheck: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 11, backgroundColor: color.mint, alignItems: 'center', justifyContent: 'center', borderTopLeftRadius: 5 },
   options: { paddingHorizontal: 17 },
   option: { minHeight: 54, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#d7dadb', alignItems: 'center', justifyContent: 'center' },
-  checkSelected: { borderColor: color.green, backgroundColor: color.green },
 });

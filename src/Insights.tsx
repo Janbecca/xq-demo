@@ -1,9 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { media } from './demo';
-import { color, Icon, IconButton, Label, s, Segments, type IconName } from './ui';
+import { AssistantSendButton, color, Icon, IconButton, Label, s, Segments, type IconName } from './ui';
 
 const prompts: { label: string; name: IconName; tint: string }[] = [
   { label: '儿童写作业', name: 'document-text', tint: '#f6a453' },
@@ -51,10 +50,7 @@ export function Search({ safeBottom, play }: { safeBottom: number; play: () => v
           <IconButton name="apps-outline" label="显示AI智搜标签" onPress={() => setSmart(true)} />
           <TextInput accessibilityLabel="搜索视频" placeholder="欢迎向小助手提问～" placeholderTextColor="#b9bbbf"
             style={i.input} value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={() => submit(query)} />
-          <Pressable accessibilityRole="button" accessibilityLabel="发送搜索" onPress={() => submit(query)} style={i.send}>
-            <LinearGradient colors={['#2bb7d9', '#10c6a0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, i.sendGradient]} />
-            <Icon name="arrow-forward" size={20} tint="#fff" />
-          </Pressable>
+          <AssistantSendButton label="发送搜索" onPress={() => submit(query)} />
         </View>
       </View>
       <Label size={13} tint={color.muted} style={i.searchNote}>本内容由AI生成</Label>
@@ -175,8 +171,6 @@ const i = StyleSheet.create({
   mode: { height: 35, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   inputRow: { minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 3 },
   input: { flex: 1, minWidth: 0, minHeight: 43, fontSize: 17, color: color.text, paddingVertical: 0 },
-  send: { width: 28, height: 28, justifyContent: 'center', alignItems: 'center' },
-  sendGradient: { borderRadius: 15 },
   searchNote: { textAlign: 'center', paddingTop: 1 },
   reportTabs: { flexDirection: 'row', gap: 26, paddingHorizontal: 11, height: 45 },
   reportTab: { justifyContent: 'center', alignItems: 'center' },

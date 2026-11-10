@@ -128,11 +128,6 @@ export function dailySummary(date: string, scope: MiyaScope) {
   };
 }
 
-export const miyaPrompts = [
-  '昨天家里发生了什么？',
-  '帮我每天下午查看孩子几点到家并通知我',
-  '每两分钟帮我查看下门口有没有包裹',
-];
 export type MiyaContext = { date?: string; scope: MiyaScope };
 export type MiyaMessage = { role: 'user' | 'miya'; text: string; clip?: MiyaClip };
 export type MiyaThread = {

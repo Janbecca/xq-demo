@@ -9,8 +9,7 @@ const avatar = media.miya;
 const categoryLabels = callAlertCategories.map(category => category.label);
 const capabilities = ['AI智能检测', 'AI智能告警', 'AI智搜', '家人/宠物守护周报'];
 const eventLimit = 4;
-const mintSurface = '#e4f8f3';
-const mintText = '#16836e';
+const { mintSurface, mintText } = color;
 type Stage = 'offer' | 'claiming' | 'events' | 'configuring' | 'name';
 const prompts: Record<Stage, readonly string[]> = {
   offer: [

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps, ReactNode } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export const color = {
   text: '#292d30', muted: '#969a9e', surface: '#fff', canvas: '#f0f1f5',
   line: '#f0f1f2', mint: '#11c6a0', green: '#36ae98', orange: '#ffa34b',
+  mintSurface: '#e4f8f3', mintText: '#16836e', secondaryText: '#687276',
 };
 
 export const icon = Ionicons;
@@ -36,6 +38,24 @@ export function PrimaryButton({ label, action, disabled }: { label: string; acti
     style={({ pressed }) => [s.primary, disabled && s.primaryDisabled, pressed && s.pressed]}>
     <Label size={17} tint="#fff">{label}</Label>
   </Pressable>;
+}
+
+export function AssistantSendButton({ label, onPress, disabled }: {
+  label: string; onPress: () => void; disabled?: boolean;
+}) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
+    disabled={disabled} onPress={onPress} hitSlop={8}
+    style={({ pressed }) => [s.assistantSend, disabled && s.primaryDisabled, pressed && s.pressed]}>
+    {!disabled && <LinearGradient colors={['#2bb7d9', '#10c6a0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={[StyleSheet.absoluteFill, s.assistantSendGradient]} />}
+    <Icon name="arrow-forward" size={20} tint="#fff" />
+  </Pressable>;
+}
+
+export function SelectionCheck({ checked }: { checked: boolean }) {
+  return <View style={[s.selectionCheck, checked && s.selectionChecked]}>
+    {checked && <Icon name="checkmark" size={17} tint="#fff" />}
+  </View>;
 }
 
 export function Header({ title, back, onTitlePress, compact = false, right }: {
@@ -107,10 +127,17 @@ export const s = StyleSheet.create({
   fill: { flex: 1 },
   pressed: { opacity: 0.58 },
   card: { backgroundColor: color.surface, borderRadius: 14 },
+  mintBadge: { width: 34, height: 34, borderRadius: 9, backgroundColor: color.mintSurface,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
   iconButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   primary: { minHeight: 51, borderRadius: 28, backgroundColor: color.mint, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 15 },
   primaryDisabled: { backgroundColor: '#b3e9dc' },
+  assistantSend: { width: 28, height: 28, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  assistantSendGradient: { borderRadius: 15 },
+  selectionCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#d7dadb',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  selectionChecked: { borderColor: color.green, backgroundColor: color.green },
   header: { height: 47, justifyContent: 'center', alignItems: 'center' },
   compactHeader: { height: 35 },
   titleButton: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '76%' },

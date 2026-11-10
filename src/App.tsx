@@ -150,7 +150,8 @@ function CameraCare() {
           }]}>
           {id === 'care' && <CareBackground />}
           {id === 'home' && !!pairedName && <HomeBackground />}
-          {id === 'report' && <LinearGradient colors={['#bdcff7', '#e7edf8', color.canvas]} locations={[0, 0.13, 0.36]} style={StyleSheet.absoluteFill} />}
+          {(id === 'report' || id === 'miyaSummary' || id === 'miyaTopic' || id === 'miyaActivities') &&
+            <LinearGradient colors={['#bdcff7', '#e7edf8', color.canvas]} locations={[0, 0.13, 0.36]} style={StyleSheet.absoluteFill} />}
           {id !== 'camera' && id !== 'home' && id !== 'miya' && id !== 'pairedWelcome' && id !== 'miyaChat' && id !== 'miyaTask' &&
             <Header title={id === 'search' ? pairedName : id === 'miyaTopic' ? screen.topic.title : titles[id]} back={back} compact={id === 'report'}
               onTitlePress={id === 'search' ? () => toast('当前设备 · ' + pairedName) : undefined} />}

@@ -98,7 +98,7 @@ export function Home({ deviceName, openCamera, openCare, openMiya, toast, safeBo
     <Pressable accessibilityRole="button" accessibilityLabel="打开 Miya 管家" onPress={openMiya}
       style={({ pressed }) => [c.miya, { bottom: safeBottom + 65 }, pressed && s.pressed]}>
       <Image source={media.miya} style={c.miyaAvatar} resizeMode="contain" />
-      <Label size={10} bold>Miya 管家</Label>
+      <Label size={10} bold tint={color.mintText}>Miya 管家</Label>
     </Pressable>
   </View>;
 }
@@ -204,8 +204,8 @@ const c = StyleSheet.create({
   redDot: { position: 'absolute', right: 8, top: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff494b' },
   homeContent: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 76, gap: 11 },
   miya: { position: 'absolute', right: 13, zIndex: 2, alignItems: 'center', justifyContent: 'center', gap: 2,
-    minWidth: 61, paddingHorizontal: 7, paddingVertical: 5, borderRadius: 19, backgroundColor: '#fff', borderWidth: 1,
-    borderColor: '#e0e9e7', boxShadow: '0 4px 13px rgba(20, 61, 73, 0.18)' },
+    minWidth: 61, paddingHorizontal: 7, paddingVertical: 5, borderRadius: 19, backgroundColor: color.surface, borderWidth: 1,
+    borderColor: color.line, boxShadow: '0 3px 10px rgba(20, 61, 73, 0.12)' },
   miyaAvatar: { width: 44, height: 44 },
   preview: { aspectRatio: 1.885, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   play: { backgroundColor: '#141517c9', height: 27, width: 27, borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingLeft: 2 },
