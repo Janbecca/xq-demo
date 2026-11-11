@@ -3,14 +3,16 @@ import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform, Pre
 import type { PlaybackSample } from './Camera';
 import { media, twoDigits } from './demo';
 import { MiyaNoticeCard } from './MiyaNoticeCard';
-import { demoReply, scopeName, scopes, type MiyaClip, type MiyaContext, type MiyaMessage, type MiyaNotice, type MiyaNoticeAction, type MiyaScope, type MiyaThread } from './miyaDemo';
+import { MiyaTaskChangeCard } from './MiyaNotifications';
+import { defaultTask, demoReply, scopeName, scopes, type MiyaClip, type MiyaContext, type MiyaMessage, type MiyaNotice, type MiyaScope, type MiyaTask, type MiyaThread } from './miyaDemo';
+import { interpretTaskRequest, linkedNoticeTask } from './miyaTaskIntent';
 import { AssistantSendButton, color, Icon, IconButton, Label, s, SelectionCheck, Sheet, type IconName } from './ui';
 import { useMiyaVoice } from './useMiyaVoice';
 
 const destinations = [
   { id: 'miyaTasks', label: '事件配置', icon: 'notifications-outline' },
-  { id: 'miyaSummary', label: '事件中心', icon: 'layers-outline' },
-  { id: 'miyaHistory', label: '历史记录', icon: 'time-outline' },
+  { id: 'miyaSummary', label: '今日总结', icon: 'layers-outline' },
+  { id: 'miyaNotices', label: '事件通知', icon: 'mail-unread-outline' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[];
 export type MiyaDestination = (typeof destinations)[number]['id'];
 
@@ -49,15 +51,23 @@ export function MiyaClipRow({ clip, pairedName, play }: { clip: MiyaClip; paired
 
 const maxDraftLength = 240;
 
-function MiyaMessages({ messages, pairedName, play }: {
-  messages: MiyaMessage[]; pairedName: string; play: (clip: MiyaClip) => void;
+function MiyaMessages({ thread, pairedName, play, savedEvents, resolveChange, onLastChangeLayout }: {
+  thread: MiyaThread; pairedName: string; play: (clip: MiyaClip) => void; savedEvents: readonly string[];
+  resolveChange: (threadId: string, index: number, confirmed?: MiyaTask) => void;
+  onLastChangeLayout?: (y: number) => void;
 }) {
-  return messages.map(({ role, text, clip }, index) => <View key={index} style={[m.message, role === 'user' && m.userMessage]}>
+  return thread.messages.map(({ role, text, clip, taskChange }, index) => <View key={index} style={[m.message, role === 'user' && m.userMessage]}
+    onLayout={taskChange && index === thread.messages.length - 1 && onLastChangeLayout
+      ? ({ nativeEvent }) => onLastChangeLayout(nativeEvent.layout.y) : undefined}>
     {role === 'miya' && <Image source={media.miya} style={m.smallAvatar} resizeMode="contain" />}
-    <View style={[m.bubble, role === 'user' && m.userBubble]}>
+    {taskChange ? <View style={m.noticeMessage}>
+      {!!text && <Label size={13} tint={color.secondaryText} style={m.messageText}>{text}</Label>}
+      <MiyaTaskChangeCard change={taskChange} initiallyExpanded={!!(onLastChangeLayout && taskChange.expanded)} savedEvents={savedEvents}
+        confirm={task => resolveChange(thread.id, index, task)} cancel={() => resolveChange(thread.id, index)} />
+    </View> : <View style={[m.bubble, role === 'user' && m.userBubble]}>
       <Label size={15} style={m.messageText}>{text}</Label>
       {clip && <MiyaClipRow clip={clip} pairedName={pairedName} play={() => play(clip)} />}
-    </View>
+    </View>}
   </View>);
 }
 
@@ -69,17 +79,18 @@ function threadTimestamp(createdAt: number) {
   };
 }
 
-export function MiyaChat({ active, pairedName, threads, notices, initialThreadId, initialContext, prefill, initialManageEvent, back, open, save, play, simulateNotice, readNotice }: {
-  active: boolean; pairedName: string; threads: MiyaThread[]; notices: MiyaNotice[];
-  initialThreadId?: string; initialContext?: MiyaContext; prefill?: string; initialManageEvent?: string;
+export function MiyaChat({ active, pairedName, threads, notices, tasks, initialContext, prefill, back, open, save, play, simulateNotice, readNotice, resolveChange }: {
+  active: boolean; pairedName: string; threads: MiyaThread[]; notices: MiyaNotice[]; tasks: MiyaTask[];
+  initialContext?: MiyaContext; prefill?: string;
   back: () => void; open: (screen: MiyaDestination) => void; save: (thread: MiyaThread) => void;
   play: (sample: PlaybackSample) => void; simulateNotice: () => void; readNotice: (id: string) => void;
+  resolveChange: (threadId: string, index: number, confirmed?: MiyaTask) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [threadId, setThreadId] = useState(initialThreadId);
+  const [threadId, setThreadId] = useState<string>();
   const [contextOverride, setContextOverride] = useState<MiyaContext>();
   const [draft, setDraft] = useState(prefill ?? '');
-  const [manageEvent, setManageEvent] = useState(initialManageEvent);
+  const [addingEvent, setAddingEvent] = useState(false);
   const [showFirstNotice, setShowFirstNotice] = useState(true);
   const [retainedNoticeIds, setRetainedNoticeIds] = useState<string[]>([]);
   const [promptsHeight, setPromptsHeight] = useState(0);
@@ -88,28 +99,40 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
   const [conversationHeight, setConversationHeight] = useState(0);
   const [archiveHeight, setArchiveHeight] = useState(0);
   const [positioned, setPositioned] = useState(false);
+  const [changePosition, setChangePosition] = useState<{ key: string; y: number }>();
   const input = useRef<TextInput>(null);
   const scroll = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const lastScroll = useRef<{ reason: string; archiveHeight: number } | undefined>(undefined);
   const thread = threads.find(item => item.id === threadId);
   const context = contextOverride ?? thread?.context ?? initialContext ?? { scope: 'all' };
   const messages = thread?.messages ?? [];
+  const savedEvents = tasks.flatMap(task => task.events);
+  const latestChange = messages.at(-1)?.taskChange;
+  const changeKey = latestChange ? `${threadId}-${messages.length}` : undefined;
   const currentNotices = notices.filter(item => !item.read || retainedNoticeIds.includes(item.id));
   const archive = [
     ...threads.filter(item => item.id !== threadId && item.messages.length > 0),
     ...notices.filter(item => item.read && !retainedNoticeIds.includes(item.id)),
   ].sort((a, b) => a.createdAt - b.createdAt);
   const hasArchive = archive.length > 0;
-  const showPrompts = !messages.length || currentNotices.length > 0 || !!manageEvent;
-  const currentOffset = showFirstNotice && currentNotices.length ? 0 : Math.max(0, conversationHeight - viewportHeight);
-  const latestOffset = (hasArchive ? archiveHeight : 0) + currentOffset;
+  const showPrompts = latestChange?.status !== 'pending' && (!messages.length || currentNotices.length > 0);
+  const showNoticeFirst = showFirstNotice && currentNotices.length > 0;
+  const changeOffset = !showNoticeFirst && changeKey && changePosition?.key === changeKey ? changePosition.y : undefined;
+  const latestOffset = (hasArchive ? archiveHeight : 0) + (showNoticeFirst ? 0 : changeOffset ?? Math.max(0, conversationHeight - viewportHeight));
+  const scrollReason = `${threadId}-${messages.length}-${currentNotices.length}-${viewportHeight}-${showNoticeFirst}`;
   const layoutReady = viewportHeight > 0 && conversationHeight >= viewportHeight && (!hasArchive || archiveHeight > 0);
 
   useEffect(() => {
     if (!active || !layoutReady) return;
+    if (changeKey && !showNoticeFirst && changeOffset === undefined) return;
+    const previous = lastScroll.current;
+    lastScroll.current = { reason: scrollReason, archiveHeight };
+    if (previous?.reason === scrollReason && scrollY.current < previous.archiveHeight - 2) return;
     scroll.current?.scrollTo({ y: latestOffset, animated: false });
     const frame = requestAnimationFrame(() => setPositioned(true));
     return () => cancelAnimationFrame(frame);
-  }, [active, layoutReady, latestOffset, messages.length, threadId, currentNotices.length]);
+  }, [active, layoutReady, latestOffset, archiveHeight, scrollReason, changeKey, changeOffset, showNoticeFirst]);
   const voice = useMiyaVoice(active, text => {
     setDraft(current => [current.trimEnd(), text].filter(Boolean).join(' ').slice(0, maxDraftLength));
   });
@@ -119,32 +142,31 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
   const voiceHint = voice.status === 'starting' ? '正在准备麦克风…' :
     listening ? '正在聆听，点一下结束' :
     voice.status === 'stopping' ? '正在识别…' : voice.message;
-  const suggestions = manageEvent
-    ? [`不再关注${manageEvent}`, `${manageEvent}时给我推送公众号消息`, `减少${manageEvent}的推送`]
-      .map((text, index) => ({ ...prompts[index], text }))
-    : prompts;
+
+  function appendMessages(title: string, newMessages: MiyaMessage[], createdAt = Date.now()) {
+    const current = thread ?? { id: 'miya-' + createdAt, title: title.slice(0, 36), createdAt, messages: [] };
+    save({ ...current, context, messages: [...current.messages, ...newMessages] });
+    setThreadId(current.id);
+    setContextOverride(undefined);
+    setShowFirstNotice(false);
+  }
 
   function send() {
     const question = draft.trim();
     if (voiceBusy || !question) return;
     const createdAt = Date.now();
-    const current = thread ?? { id: 'miya-' + createdAt, title: question.slice(0, 36), createdAt, messages: [] };
-    const next: MiyaThread = {
-      ...current, context, messages: [...current.messages, { role: 'user', text: question }, demoReply(question, context)],
-    };
-    setThreadId(next.id);
-    setContextOverride(undefined);
+    const request = interpretTaskRequest(question, tasks, 'task-chat-' + createdAt, addingEvent);
+    const reply: MiyaMessage = request ? { role: 'miya', ...request } : demoReply(question, context);
+    appendMessages(question, [{ role: 'user', text: question }, reply], createdAt);
     setDraft('');
-    setManageEvent(undefined);
-    setShowFirstNotice(false);
-    save(next);
+    if (!request || request.taskChange) setAddingEvent(false);
   }
 
   function newChat() {
     voice.cancel();
     setThreadId(undefined);
     setDraft('');
-    setManageEvent(undefined);
+    setAddingEvent(false);
     setShowFirstNotice(true);
     setRetainedNoticeIds([]);
     setContextOverride({ scope: 'all' });
@@ -155,11 +177,26 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
     setExpanded(!expanded);
   }
 
-  function applyNoticeAction(action: MiyaNoticeAction, notice: MiyaNotice) {
-    voice.cancel();
+  function retainNotice(notice: MiyaNotice) {
     if (!notice.read) setRetainedNoticeIds(ids => [...ids, notice.id]);
-    setDraft(action.draft);
-    setManageEvent(action.id === 'manage' ? notice.event : undefined);
+  }
+
+  function addNoticeEvent(notice: MiyaNotice) {
+    voice.cancel();
+    retainNotice(notice);
+    setDraft('我想关注：');
+    setAddingEvent(true);
+  }
+
+  function manageNotice(notice: MiyaNotice) {
+    voice.cancel();
+    Keyboard.dismiss();
+    retainNotice(notice);
+    const linked = linkedNoticeTask(tasks, notice);
+    const task = linked ?? { ...defaultTask, id: 'task-' + notice.id, events: [notice.event] };
+    appendMessages(notice.event, [{ role: 'miya', text: '', taskChange: {
+      task, status: 'pending', kind: linked ? 'edit' : 'add', noticeId: notice.id, expanded: true,
+    } }]);
   }
 
   function noticeMessage(notice: MiyaNotice) {
@@ -167,7 +204,10 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
       <Image source={media.miya} style={m.smallAvatar} resizeMode="contain" accessible={false} />
       <View style={m.noticeMessage}>
         <Label size={12} tint={color.secondaryText}>Miya 管家</Label>
-        <MiyaNoticeCard notice={notice} read={readNotice} play={play} openEvents={() => open('miyaTasks')} onAction={applyNoticeAction} />
+        <MiyaNoticeCard notice={notice} controls={{
+          read: readNotice, play, addEvent: addNoticeEvent,
+          manage: manageNotice,
+        }} />
       </View>
     </View>;
   }
@@ -190,6 +230,7 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
     </View>}
     <View style={m.chatArea}>
       <ScrollView ref={scroll} style={[s.fill, !positioned && m.awaitingLayout]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        onScroll={({ nativeEvent }) => { scrollY.current = nativeEvent.contentOffset.y; }} scrollEventThrottle={16}
         onLayout={({ nativeEvent }) => { if (nativeEvent.layout.height > 0) setViewportHeight(nativeEvent.layout.height); }}>
         {hasArchive && <View style={m.chatArchive} onLayout={({ nativeEvent }) => {
           if (nativeEvent.layout.height > 0) setArchiveHeight(nativeEvent.layout.height);
@@ -199,7 +240,7 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
             const { day, time } = threadTimestamp(item.createdAt);
             return <View key={item.id} style={m.chatContent}>
               <Label size={12} tint={color.secondaryText} style={m.archiveTimestamp}>{day} {time}</Label>
-              <MiyaMessages messages={item.messages} pairedName={pairedName} play={play} />
+              <MiyaMessages thread={item} pairedName={pairedName} play={play} savedEvents={savedEvents} resolveChange={resolveChange} />
             </View>;
           })}
           <View style={m.archiveDivider}>
@@ -211,7 +252,9 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
         <View style={[m.chatContent, { minHeight: viewportHeight, paddingBottom: 16 + (showPrompts ? promptsHeight : 0) }]}
           onLayout={({ nativeEvent }) => { if (nativeEvent.layout.height > 0) setConversationHeight(nativeEvent.layout.height); }}>
           {currentNotices.map(noticeMessage)}
-          {messages.length > 0 && <MiyaMessages messages={messages} pairedName={pairedName} play={play} />}
+          {thread && <MiyaMessages thread={thread} pairedName={pairedName} play={play} savedEvents={savedEvents} resolveChange={resolveChange}
+            onLastChangeLayout={changeKey ? y => setChangePosition(previous =>
+              previous?.key === changeKey && previous.y === y ? previous : { key: changeKey, y }) : undefined} />}
           {!messages.length && !currentNotices.length && <View style={m.hero}>
             <Image source={media.miya} style={m.avatar} resizeMode="contain" accessibilityLabel="Miya 管家头像" />
             <Label size={21} bold>你好，我是 Miya</Label>
@@ -221,7 +264,7 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
       </ScrollView>
       {showPrompts && <View pointerEvents="box-none" style={m.prompts}
         onLayout={({ nativeEvent }) => setPromptsHeight(nativeEvent.layout.height)}>
-        {suggestions.map(({ text, icon, tint }) => <Pressable key={text} accessibilityRole="button"
+        {prompts.map(({ text, icon, tint }) => <Pressable key={text} accessibilityRole="button"
           onPress={() => { voice.cancel(); setDraft(text); input.current?.focus(); }} style={({ pressed }) => [m.prompt, pressed && s.pressed]}>
           <Icon name={icon} size={15} tint={tint} /><Label size={14} style={m.promptText}>{text}</Label>
         </Pressable>)}
@@ -262,54 +305,6 @@ export function MiyaChat({ active, pairedName, threads, notices, initialThreadId
   </KeyboardAvoidingView>;
 }
 
-export function MiyaHistory({ threads, pairedName, open, newChat }: {
-  threads: MiyaThread[]; pairedName: string; open: (thread: MiyaThread) => void; newChat: () => void;
-}) {
-  const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<MiyaScope>('all');
-  const [choosingScope, setChoosingScope] = useState(false);
-  const search = query.trim().toLowerCase();
-  const items = threads.filter(thread => (scope === 'all' || thread.context.scope === scope) &&
-    (!search || thread.messages.some(message => message.text.toLowerCase().includes(search))));
-  let lastDate = '';
-  return <View style={s.fill}>
-    <View style={m.historyBar}>
-      <Pressable accessibilityRole="button" style={[m.scope, m.historyFilter]} onPress={() => setChoosingScope(true)}>
-        <Label size={14}>{scopeName(scope, pairedName)}</Label><Icon name="chevron-down" size={13} />
-      </Pressable>
-      <Pressable accessibilityRole="button" onPress={newChat} style={m.scope}>
-        <Icon name="add-circle-outline" size={18} tint={color.mintText} /><Label size={14} tint={color.mintText}>新对话</Label>
-      </Pressable>
-    </View>
-    <View style={m.search}>
-      <Icon name="search-outline" size={18} tint={color.muted} />
-      <TextInput style={m.searchInput} accessibilityLabel="搜索历史记录" placeholder="搜索历史记录" placeholderTextColor={color.muted}
-        value={query} onChangeText={setQuery} returnKeyType="search" />
-    </View>
-    <ScrollView contentContainerStyle={m.historyContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      {!items.length && <Label size={14} tint={color.muted} style={m.empty}>{search ? '没有匹配的对话记录' : '暂无对话记录'}</Label>}
-      {items.map(thread => {
-        const { day, time } = threadTimestamp(thread.createdAt);
-        const showDate = day !== lastDate;
-        lastDate = day;
-        return <View key={thread.id}>
-          {showDate && <Label size={13} tint={color.secondaryText} style={m.historyDay}>{day}</Label>}
-          <Pressable accessibilityRole="button" onPress={() => open(thread)} style={[s.card, m.thread]}>
-            <View style={s.mintBadge}><Icon name="chatbubble-ellipses-outline" size={18} tint={color.mintText} /></View>
-            <View style={s.fill}>
-              <Label bold size={15} numberOfLines={1}>{thread.title}</Label>
-              <Label size={12} tint={color.muted} numberOfLines={1}>{thread.messages.at(-1)?.text}</Label>
-            </View>
-            <Label size={12} tint={color.secondaryText}>{time}</Label>
-            <Icon name="chevron-forward" size={15} tint={color.muted} />
-          </Pressable>
-        </View>;
-      })}
-    </ScrollView>
-    {choosingScope && <MiyaScopePicker pairedName={pairedName} scope={scope} onSelect={setScope} onClose={() => setChoosingScope(false)} />}
-  </View>;
-}
-
 const m = StyleSheet.create({
   header: { height: 51 },
   headerAvatar: { width: 34, height: 34 },
@@ -348,13 +343,4 @@ const m = StyleSheet.create({
   pickerRow: { minHeight: 49, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18 },
   clip: { flexDirection: 'row', gap: 10, alignItems: 'center', minHeight: 59, paddingVertical: 7 },
   thumbnail: { width: 60, height: 39, borderRadius: 7 },
-  historyBar: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 16, marginVertical: 9, gap: 10 },
-  historyFilter: { paddingHorizontal: 12, borderRadius: 18, backgroundColor: color.surface },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 16, paddingHorizontal: 14,
-    minHeight: 44, borderRadius: 23, backgroundColor: color.surface },
-  searchInput: { flex: 1, minWidth: 0, color: color.text, fontSize: 15, paddingVertical: 8 },
-  historyContent: { padding: 16, gap: 8 },
-  historyDay: { marginBottom: 7, marginLeft: 10 },
-  thread: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingVertical: 11, minHeight: 64 },
-  empty: { textAlign: 'center', padding: 20 },
 });

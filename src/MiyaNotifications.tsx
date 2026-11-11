@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { callAlertCategories, timeText, weekdays, type Time } from './demo';
-import { channels, defaultTask, maxCustomMinutes, minutesOf, spanMinutes, taskDays, taskHours, timeAt, type MiyaTask } from './miyaDemo';
+import { MiyaEventDescription } from './MiyaEventDescription';
+import { channels, defaultTask, demoNoticeEvent, maxCustomMinutes, minutesOf, spanMinutes, taskDays, taskHours, timeAt, type MiyaTask, type MiyaTaskChange } from './miyaDemo';
+import { presetCallAlerts } from './miyaEvents';
 import { color, Header, Icon, IconButton, Label, PrimaryButton, s, Segments, SelectionCheck, Sheet } from './ui';
 
-const categoryNames = callAlertCategories.map(category => category.label);
+const categoryNames = [...callAlertCategories.map(category => category.label), '自定义'];
+const standardEvents = new Set<string>(presetCallAlerts);
 const dialSize = 240;
 const center = dialSize / 2;
 const radius = 94;
@@ -120,11 +123,43 @@ function TimeDial({ start, end, setStart, setEnd, setDragging }: {
   </View>;
 }
 
-export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
-  id: string; initial?: MiyaTask; save: (task: MiyaTask) => void; remove: () => void; cancel: () => void;
+export function MiyaTaskChangeCard({ change, initiallyExpanded, savedEvents, confirm, cancel }: {
+  change: MiyaTaskChange; initiallyExpanded: boolean; savedEvents: readonly string[];
+  confirm: (task: MiyaTask) => void; cancel: () => void;
+}) {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const { task, kind, status } = change;
+  const removing = kind === 'remove';
+  const editable = status === 'pending' && !removing;
+  const title = removing ? '取消关注 ' + task.events.join('、') : `${task.events.join('、')}，${taskDays(task.days)} ${taskHours(task)}`;
+  return <View style={[s.card, n.changeCard]}>
+    <View style={n.changeHeader}>
+      <Label size={16} bold style={s.fill}>{title}</Label>
+      {editable && <Pressable accessibilityRole="button" accessibilityLabel={expanded ? '收起配置' : '展开配置'}
+        aria-expanded={expanded} accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} style={n.changeToggle}>
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={16} tint={color.mintText} />
+      </Pressable>}
+    </View>
+    {status !== 'pending' ? <Label size={13} tint={color.secondaryText} style={n.changeCaption}>{status === 'saved' ? '已生效' : '已取消'}</Label>
+      : removing ? <View style={[n.footer, n.footerRow]}>
+        <Pressable accessibilityRole="button" onPress={cancel} style={[n.cancel, n.inlineCancel]}><Label>取消</Label></Pressable>
+        <View style={s.fill}><PrimaryButton label="确认生效" action={() => confirm(task)} /></View>
+      </View> : <>
+        {!expanded && <Label size={13} tint={color.secondaryText} style={n.changeCaption}>{task.channels.join('、')}</Label>}
+        <MiyaTaskEditor id={task.id} initial={task} inline showFields={expanded}
+          savedEvents={savedEvents} save={confirm} cancel={cancel} />
+      </>}
+  </View>;
+}
+
+export function MiyaTaskEditor({ id, initial, inline = false, showFields = true, savedEvents = [], save, remove, cancel }: {
+  id: string; initial?: MiyaTask; inline?: boolean; showFields?: boolean;
+  savedEvents?: readonly string[];
+  save: (task: MiyaTask) => void; remove?: () => void; cancel: () => void;
 }) {
   const base = initial ?? defaultTask;
   const [events, setEvents] = useState(base.events);
+  const [newCustomEvents, setNewCustomEvents] = useState<string[]>([]);
   const [methods, setMethods] = useState(base.channels);
   const [days, setDays] = useState(base.days);
   const [allDay, setAllDay] = useState(base.allDay);
@@ -135,6 +170,9 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
   const [deleting, setDeleting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const customEvents = [...new Set([demoNoticeEvent, ...savedEvents, ...base.events, ...newCustomEvents])]
+    .filter(event => !standardEvents.has(event));
+  const groups = callAlertCategories[category]?.groups ?? [{ label: '自定义', events: customEvents }];
   const start = parseTime(startText);
   const end = parseTime(endText);
   const setStart = useCallback((value: Time) => setStartText(timeText(value)), []);
@@ -148,6 +186,17 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
   const error = !events.length ? '请选择至少一个关注事件' : !methods.length ? '请选择至少一种通知方式' :
     !days.length ? '请选择至少一个通知日' : timeError;
 
+  function addDescribedEvent(event: string) {
+    setEvents(items => items.includes(event) ? items : [...items, event]);
+    const presetCategory = callAlertCategories.findIndex(item => item.groups.some(group => group.events.some(name => name === event)));
+    if (presetCategory >= 0) {
+      setCategory(presetCategory);
+    } else {
+      if (!customEvents.includes(event)) setNewCustomEvents(items => [...items, event]);
+      setCategory(callAlertCategories.length);
+    }
+  }
+
   function submit() {
     setSubmitted(true);
     if (error) return;
@@ -155,10 +204,7 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
     save({ id, events, channels: methods, days, allDay, start: start ?? base.start, end: end ?? base.end });
   }
 
-  return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.fill}>
-    <Header title={initial ? '编辑通知任务' : '新建通知任务'} back={cancel}
-      right={initial && <IconButton name="trash-outline" tint="#a04a45" label="删除任务" onPress={() => setDeleting(true)} />} />
-    <ScrollView contentContainerStyle={n.content} scrollEnabled={!dragging} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+  const fields = <>
       <Label size={15} bold style={n.sectionText}>关注事件</Label>
       <View style={[s.card, n.card]}>
         <Pressable accessibilityRole="button" accessibilityLabel={selecting ? '收起' : '选择事件'} accessibilityState={{ expanded: selecting }}
@@ -170,8 +216,9 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
           <Icon name={selecting ? 'chevron-up' : 'chevron-down'} size={15} tint={color.muted} />
         </Pressable>
         {selecting && <>
+          <MiyaEventDescription selected={events} add={addDescribedEvent} knownCustom={customEvents} />
           <Segments labels={categoryNames} selected={category} onChange={setCategory} equal />
-          {callAlertCategories[category].groups.map(group => <View key={group.label} style={n.group}>
+          {groups.map(group => <View key={group.label} style={n.group}>
             {categoryNames[category] !== group.label && <Label size={13} tint={color.secondaryText}>{group.label}</Label>}
             {group.events.map((event, index) => <CheckRow key={event} label={event} checked={events.includes(event)}
               last={index === group.events.length - 1} onPress={() => setEvents(items => toggle(items, event))} />)}
@@ -187,7 +234,7 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
       <View style={[s.card, n.card]}>
         <View style={n.sectionHeader}><Label size={15}>重复日期</Label><Label size={13} tint={color.secondaryText}>{taskDays(days)}</Label></View>
         <View style={n.days}>
-          {weekdays.map(day => <Pressable key={day} accessibilityRole="checkbox" accessibilityLabel={day} accessibilityState={{ checked: days.includes(day) }}
+          {weekdays.map(day => <Pressable key={day} accessibilityRole="checkbox" accessibilityLabel={day} aria-checked={days.includes(day)} accessibilityState={{ checked: days.includes(day) }}
             onPress={() => setDays(current => weekdays.filter(item => item === day ? !current.includes(day) : current.includes(item)))}
             style={[n.day, days.includes(day) && n.daySelected]}>
             <Label size={14} tint={days.includes(day) ? color.mintText : color.text}>{day.slice(1)}</Label>
@@ -203,30 +250,51 @@ export function MiyaTaskEditor({ id, initial, save, remove, cancel }: {
               value={endText} onChangeText={setEndText} maxLength={5} keyboardType="numbers-and-punctuation"
               onBlur={() => { if (end) setEnd(end); }} /></View>
           </View>
-          <TimeDial start={start ?? base.start} end={end ?? base.end} setStart={setStart} setEnd={setEnd} setDragging={setDragging} />
-          <Label size={12} tint={color.secondaryText} style={n.caption}>时区 Asia/Shanghai · 可拖动起止时间</Label>
+          {!inline && <TimeDial start={start ?? base.start} end={end ?? base.end} setStart={setStart} setEnd={setEnd} setDragging={setDragging} />}
+          <Label size={12} tint={color.secondaryText} style={n.caption}>{inline ? '时区 Asia/Shanghai' : '时区 Asia/Shanghai · 可拖动起止时间'}</Label>
           {timeError && <Label size={12} tint="#a04039" accessibilityLiveRegion="polite">{timeError}</Label>}
         </>}
       </View>
-    </ScrollView>
+  </>;
+  const footer = <>
     {submitted && error && <Label size={13} tint="#a04039" accessibilityLiveRegion="polite" style={n.error}>{error}</Label>}
     <View style={[n.footer, n.footerRow]}>
-      <Pressable accessibilityRole="button" onPress={cancel} style={n.cancel}><Label>取消</Label></Pressable>
-      <View style={s.fill}><PrimaryButton label="保存任务" action={submit} /></View>
+      <Pressable accessibilityRole="button" onPress={cancel} style={[n.cancel, inline && n.inlineCancel]}><Label>取消</Label></Pressable>
+      <View style={s.fill}><PrimaryButton label={inline ? '确认生效' : '保存任务'} action={submit} /></View>
     </View>
-    {deleting && <Sheet title="删除通知任务" close={() => setDeleting(false)} confirm={remove}>
+  </>;
+  if (inline) return <View>
+    <View style={[n.content, n.inlineFields, !showFields && n.hidden]}>{fields}</View>
+    {footer}
+  </View>;
+  return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.fill}>
+    <Header title={initial ? '编辑通知任务' : '新建通知任务'} back={cancel}
+      right={initial && remove && <IconButton name="trash-outline" tint="#a04a45" label="删除任务" onPress={() => setDeleting(true)} />} />
+    <ScrollView contentContainerStyle={n.content} scrollEnabled={!dragging} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      {fields}
+    </ScrollView>
+    {footer}
+    {deleting && remove && <Sheet title="删除通知任务" close={() => setDeleting(false)} confirm={remove}>
       <Label style={n.deletePrompt}>删除「{initial?.events.join('、')}」的通知设置？</Label>
     </Sheet>}
   </KeyboardAvoidingView>;
 }
 
 function CheckRow({ label, checked, last, onPress }: { label: string; checked: boolean; last: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onPress} style={[n.check, !last && s.divider]}>
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={label} aria-checked={checked} accessibilityState={{ checked }}
+    onPress={onPress} style={[n.check, !last && s.divider]}>
     <Label size={16}>{label}</Label><SelectionCheck checked={checked} />
   </Pressable>;
 }
 
 const n = StyleSheet.create({
+  changeCard: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#dfe3e7', overflow: 'hidden' },
+  changeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 13, paddingRight: 8, paddingVertical: 9, minHeight: 46 },
+  changeToggle: { width: 32, height: 32, borderRadius: 10, backgroundColor: color.mintSurface, alignItems: 'center', justifyContent: 'center' },
+  changeCaption: { marginHorizontal: 13, marginBottom: 4 },
+  inlineFields: { backgroundColor: color.canvas, marginHorizontal: 8, paddingHorizontal: 8, borderRadius: 11 },
+  hidden: { display: 'none' },
+  inlineCancel: { backgroundColor: color.canvas },
   content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20, gap: 8 },
   sectionText: { marginHorizontal: 16, lineHeight: 21 },
   sectionGap: { marginTop: 6 },

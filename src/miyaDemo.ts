@@ -1,10 +1,11 @@
-import { timeText, weekdays, type CallAlertEvent, type Time } from './demo';
+import { timeText, weekdays, type Time } from './demo';
 import { findMiyaEvents } from './miyaEvents';
 
 export const channels = ['APP通知', '公众号通知'] as const;
+export const demoNoticeEvent = '有人举手';
 export type MiyaTask = {
   id: string;
-  events: CallAlertEvent[];
+  events: string[];
   channels: (typeof channels)[number][];
   days: string[];
   allDay: boolean;
@@ -17,11 +18,6 @@ export const defaultTask: Omit<MiyaTask, 'id'> = {
   events: [], channels: ['APP通知'], days: weekdays, allDay: false,
   start: { hour: 10, minute: 0 }, end: { hour: 18, minute: 0 },
 };
-export const initialTasks: MiyaTask[] = [
-  { ...defaultTask, id: 'demo-pet', events: ['宠物吃饭/喝水'], days: weekdays.slice(0, 5),
-    start: { hour: 9, minute: 0 }, end: { hour: 17, minute: 0 } },
-  { ...defaultTask, id: 'demo-fall', events: ['老人跌倒'], channels: ['公众号通知'], allDay: true },
-];
 
 export function taskDays(days: string[]) {
   if (days.length === weekdays.length) return '每天';
@@ -56,15 +52,28 @@ export type MiyaClip = {
 export type MiyaNotice = {
   id: string;
   event: string;
+  taskId?: string;
   deviceName: string;
   createdAt: number;
   read: boolean;
+  description?: string;
+  fromFollowed?: boolean;
 };
-export const noticeActions = [
-  { id: 'add', label: 'A. 新增关注事件', draft: '我想关注：' },
-  { id: 'manage', label: 'B. 管理我的事件', draft: '管理事件：' },
-] as const;
-export type MiyaNoticeAction = (typeof noticeActions)[number];
+export type MiyaTaskChange = {
+  task: MiyaTask;
+  kind: 'add' | 'edit' | 'remove';
+  status: 'pending' | 'saved' | 'cancelled';
+  replace?: { taskId: string; event: string };
+  noticeId?: string;
+  expanded?: boolean;
+};
+export const demoNoticeEvents = [
+  { event: demoNoticeEvent, description: '画面中有人抬起一只手。' },
+  { event: '小孩写作业', description: '孩子坐在桌前翻开作业本并写字。' },
+  { event: '宠物吃饭/喝水', description: '宠物走到食碗旁进食。' },
+  { event: '老人跌倒', description: '画面中的老人失去平衡后倒在地上。' },
+  { event: '有人把快递放在门口', description: '有人将一个快递包裹放在门口后离开。' },
+];
 type SummaryEntry = { text: string; time?: string; device?: MiyaCamera };
 type Topic = { id: string; title: string; description: string; clipIds: string[]; count?: number; attention?: boolean };
 type MiyaDay = {
@@ -141,7 +150,7 @@ export function dailySummary(date: string, scope: MiyaScope) {
 }
 
 export type MiyaContext = { date?: string; scope: MiyaScope };
-export type MiyaMessage = { role: 'user' | 'miya'; text: string; clip?: MiyaClip };
+export type MiyaMessage = { role: 'user' | 'miya'; text: string; clip?: MiyaClip; taskChange?: MiyaTaskChange };
 export type MiyaThread = {
   id: string;
   title: string;
@@ -160,7 +169,7 @@ export const initialThreads: MiyaThread[] = [{
 
 export function demoReply(question: string, context: MiyaContext): MiyaMessage {
   const summary = dailySummary(context.date ?? (question.includes('昨天') ? summaryYesterday : summaryToday), context.scope);
-  let text = '这组样例里没有匹配的片段。可以换个事件描述，或到事件中心按日期查看。';
+  let text = '这组样例里没有匹配的片段。可以换个事件描述，或到今日总结按日期查看。';
   if (/每天|每周|每隔|每两分钟|每\d+分钟/.test(question)) {
     text = '当前为本地演示，暂时无法安排定时查看或发送通知。';
   } else if (/回顾|总结|摘要|发生了什么/.test(question)) {

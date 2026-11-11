@@ -9,18 +9,18 @@ import { Camera, Home, HomeBackground, type CameraTab, type PlaybackSample } fro
 import { Care, CareBackground, Detection, type CareDestination } from './Care';
 import { defaultRule, initialRules, type Rule } from './demo';
 import { Report, Search } from './Insights';
-import { MiyaChat, MiyaHistory, type MiyaDestination } from './Miya';
+import { MiyaChat, type MiyaDestination } from './Miya';
 import { MiyaTaskEditor, MiyaTasks } from './MiyaNotifications';
 import { MiyaActivities, MiyaNoticeList, MiyaSummary, MiyaTopicDetails } from './MiyaSummary';
-import { type MiyaContext, type MiyaScope, type MiyaTask, type MiyaThread, type MiyaTopic } from './miyaDemo';
+import { defaultTask, demoNoticeEvents, type MiyaContext, type MiyaScope, type MiyaTask, type MiyaThread, type MiyaTopic } from './miyaDemo';
 import { useMiyaData } from './miyaStorage';
 import { DeviceScanner, EmptyHome, pairingBackground, PairingStep, type PairStage } from './Pairing';
 import { RuleEditor } from './RuleEditor';
 import { color, Header, icon, Label, s } from './ui';
 
-type Screen = { id: 'home' | 'care' | 'scan' | 'miya' | 'pairedWelcome' | 'miyaNotices' | CareDestination | MiyaDestination }
+type Screen = { id: 'home' | 'care' | 'scan' | 'miya' | 'pairedWelcome' | CareDestination | MiyaDestination }
   | { id: 'camera'; tab: CameraTab; playbackSample?: PlaybackSample }
-  | { id: 'miyaChat'; threadId?: string; context?: MiyaContext; prefill?: string; manageEvent?: string }
+  | { id: 'miyaChat'; context?: MiyaContext; prefill?: string }
   | { id: 'miyaTask'; taskId: string; task?: MiyaTask }
   | { id: 'miyaTopic'; topic: MiyaTopic; date: string; scope: MiyaScope }
   | { id: 'miyaActivities'; date: string; scope: MiyaScope }
@@ -30,7 +30,7 @@ const web = Platform.OS === 'web';
 const titles = {
   care: 'AI智护', detection: 'AI智能检测', report: '智能看护报告', rule: '分级告警',
   scan: '添加设备', pair: '添加智能摄像机', callAlerts: '微信通话告警',
-  miyaTasks: '事件配置', miyaSummary: '事件中心', miyaHistory: '历史记录', miyaActivities: '当天活动', miyaNotices: '事件通知',
+  miyaTasks: '事件配置', miyaSummary: '今日总结', miyaActivities: '当天活动', miyaNotices: '事件通知',
 };
 
 function CameraCare() {
@@ -39,7 +39,6 @@ function CameraCare() {
   const [stack, setStack] = useState<Screen[]>([{ id: 'home' }]);
   const [pairedName, setPairedName] = useState('');
   const [callAlerts, setCallAlerts] = useState<readonly string[]>([]);
-  const [banner, setBanner] = useState(true);
   const [enabled, setEnabled] = useState(true);
   const [rules, setRules] = useState(initialRules);
   const [miyaData, setMiyaData] = useMiyaData();
@@ -78,6 +77,12 @@ function CameraCare() {
     Keyboard.dismiss();
     setPairedName(name);
     setCallAlerts(events);
+    const id = 'task-pair-' + Date.now();
+    setMiyaData(current => {
+      if (!current) return current;
+      const newEvents = events.filter(event => !current.tasks.some(task => task.events.includes(event)));
+      return newEvents.length ? { ...current, tasks: [...current.tasks, { ...defaultTask, id, events: newEvents }] } : current;
+    });
     setStack([{ id: 'pairedWelcome' }]);
   };
   const saveCallAlerts = (events: readonly string[]) => {
@@ -94,8 +99,21 @@ function CameraCare() {
   };
   const simulateMiyaNotice = () => {
     const createdAt = Date.now();
+    if (!miyaData) return;
+    const configured = miyaData.tasks.some(task => task.events.length > 0);
+    const detected = demoNoticeEvents.flatMap(sample => {
+      const task = miyaData.tasks.find(item => item.events.includes(sample.event));
+      if (configured && !task) return [];
+      return [{ ...sample, taskId: task?.id, fromFollowed: !!task }];
+    });
+    if (!detected.length) {
+      toast('这批样例未检测到已关注的事件');
+      return;
+    }
     setMiyaData(current => current && { ...current, notices: [
-      { id: `notice-${createdAt}-${current.notices.length}`, event: '有人举手', deviceName: pairedName, createdAt, read: false },
+      ...detected.map((item, index) => ({
+        ...item, id: `notice-${createdAt}-${current.notices.length}-${index}`, deviceName: pairedName, createdAt, read: false,
+      })),
       ...current.notices,
     ] });
   };
@@ -105,13 +123,7 @@ function CameraCare() {
     });
   };
   const saveMiyaTask = (task: MiyaTask) => {
-    setMiyaData(current => {
-      if (!current) return current;
-      const tasks = current.tasks.some(item => item.id === task.id)
-        ? current.tasks.map(item => item.id === task.id ? task : item)
-        : [...current.tasks, task];
-      return { ...current, tasks };
-    });
+    setMiyaData(current => current && { ...current, tasks: upsertTask(current.tasks, task) });
     back();
     toast('通知任务已保存');
   };
@@ -119,6 +131,36 @@ function CameraCare() {
     setMiyaData(current => current && { ...current, tasks: current.tasks.filter(item => item.id !== id) });
     back();
     toast('通知任务已删除');
+  };
+  const resolveMiyaChange = (threadId: string, index: number, confirmed?: MiyaTask) => {
+    setMiyaData(current => {
+      if (!current) return current;
+      const thread = current.threads.find(item => item.id === threadId);
+      const message = thread?.messages[index];
+      const change = message?.taskChange;
+      if (!thread || !message || change?.status !== 'pending') return current;
+      let { tasks, notices } = current;
+      if (confirmed) {
+        const replacement = change.replace;
+        if (replacement) {
+          tasks = tasks.map(task => task.id === replacement.taskId
+            ? { ...task, events: task.events.filter(event => event !== replacement.event) }
+            : task).filter(task => task.events.length);
+        }
+        if (change.kind !== 'remove') tasks = upsertTask(tasks, confirmed);
+        notices = notices.map(notice => {
+          const wasReplaced = !!replacement && notice.taskId === replacement.taskId && notice.event === replacement.event;
+          if (notice.id !== change.noticeId && !wasReplaced) return notice;
+          const taskId = change.kind !== 'remove' && confirmed.events.includes(notice.event) ? confirmed.id : undefined;
+          return { ...notice, taskId };
+        });
+      }
+      const messages = thread.messages.map((item, position) => position === index ? {
+        ...message, taskChange: { ...change, task: confirmed ?? change.task, status: confirmed ? 'saved' as const : 'cancelled' as const },
+      } : item);
+      const threads = current.threads.map(item => item.id === threadId ? { ...thread, messages } : item);
+      return { ...current, tasks, notices, threads };
+    });
   };
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -170,7 +212,7 @@ function CameraCare() {
           {id === 'home' && (pairedName
             ? <Home deviceName={pairedName} openCamera={openCamera} openCare={() => open({ id: 'care' })} toast={toast}
               openMiya={() => open({ id: 'miyaChat' })} miyaUnread={miyaData.notices.some(notice => !notice.read)}
-              banner={banner} dismissBanner={() => setBanner(false)} safeBottom={safeBottom} />
+              safeBottom={safeBottom} />
             : <EmptyHome add={() => open({ id: 'scan' })} />)}
           {id === 'scan' && <DeviceScanner active={show} onScan={() => open({ id: 'pair', stage: 'prepare' })} toast={toast} />}
           {id === 'pair' && <PairingStep stage={screen.stage} active={show} next={
@@ -189,25 +231,22 @@ function CameraCare() {
           {id === 'rule' && <RuleEditor initial={screen.rule} save={save} />}
           {id === 'search' && <Search safeBottom={safeBottom} play={() => play({ title: '写作业', time: '06.25 18:32' })} />}
           {id === 'report' && <Report />}
-          {id === 'miyaChat' && <MiyaChat active={show} pairedName={pairedName} threads={miyaData.threads} notices={miyaData.notices}
-            initialThreadId={screen.threadId} initialContext={screen.context} prefill={screen.prefill} initialManageEvent={screen.manageEvent} back={back}
-            open={destination => open({ id: destination })} save={saveMiyaThread} play={play} simulateNotice={simulateMiyaNotice} readNotice={readMiyaNotice} />}
+          {id === 'miyaChat' && <MiyaChat active={show} pairedName={pairedName} threads={miyaData.threads} notices={miyaData.notices} tasks={miyaData.tasks}
+            initialContext={screen.context} prefill={screen.prefill} back={back}
+            open={destination => open({ id: destination })} save={saveMiyaThread} play={play}
+            simulateNotice={simulateMiyaNotice} readNotice={readMiyaNotice} resolveChange={resolveMiyaChange} />}
           {id === 'miyaTasks' && <MiyaTasks tasks={miyaData.tasks} add={() => open({ id: 'miyaTask', taskId: 'task-' + Date.now() })}
             edit={task => open({ id: 'miyaTask', taskId: task.id, task })} />}
-          {id === 'miyaTask' && <MiyaTaskEditor id={screen.taskId} initial={screen.task} save={saveMiyaTask}
+          {id === 'miyaTask' && <MiyaTaskEditor id={screen.taskId} initial={screen.task}
+            savedEvents={miyaData.tasks.flatMap(task => task.events)} save={saveMiyaTask}
             remove={() => removeMiyaTask(screen.taskId)} cancel={back} />}
-          {id === 'miyaSummary' && <MiyaSummary pairedName={pairedName} noticeCount={miyaData.notices.length}
-            openNotices={() => open({ id: 'miyaNotices' })}
+          {id === 'miyaSummary' && <MiyaSummary pairedName={pairedName}
             openTopic={(topic, date, scope) => open({ id: 'miyaTopic', topic, date, scope })}
             openActivities={(date, scope) => open({ id: 'miyaActivities', date, scope })}
             ask={(date, scope) => open({ id: 'miyaChat', context: { date, scope }, prefill: `帮我回顾 ${date} 这一天发生了什么。` })} />}
-          {id === 'miyaNotices' && <MiyaNoticeList notices={miyaData.notices} readNotice={readMiyaNotice} play={play}
-            openEvents={() => open({ id: 'miyaTasks' })}
-            noticeAction={(action, notice) => open({ id: 'miyaChat', prefill: action.draft, manageEvent: action.id === 'manage' ? notice.event : undefined })} />}
+          {id === 'miyaNotices' && <MiyaNoticeList notices={miyaData.notices} />}
           {id === 'miyaTopic' && <MiyaTopicDetails topic={screen.topic} date={screen.date} scope={screen.scope} pairedName={pairedName} />}
           {id === 'miyaActivities' && <MiyaActivities date={screen.date} scope={screen.scope} pairedName={pairedName} play={play} />}
-          {id === 'miyaHistory' && <MiyaHistory threads={miyaData.threads} pairedName={pairedName}
-            open={thread => open({ id: 'miyaChat', threadId: thread.id })} newChat={() => open({ id: 'miyaChat' })} />}
         </View>;
       })}
       {!!message && <View pointerEvents="none" style={[app.toast, { bottom: safeBottom + 73 }]}>
@@ -215,6 +254,12 @@ function CameraCare() {
       </View>}
     </View>
   </View>;
+}
+
+function upsertTask(tasks: MiyaTask[], task: MiyaTask) {
+  return tasks.some(item => item.id === task.id)
+    ? tasks.map(item => item.id === task.id ? task : item)
+    : [...tasks, task];
 }
 
 export default function App() {

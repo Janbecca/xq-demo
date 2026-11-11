@@ -15,16 +15,23 @@ const shortcuts = [
   { label: 'AI智护', image: media.ai },
   { label: '设置', icon: 'settings-outline' as const },
 ];
-const navigation: { label: string; name: IconName }[] = [
-  { label: '首页', name: 'home' }, { label: '商城', name: 'bag-handle-outline' },
-  { label: '云录像', name: 'cloud-upload' }, { label: '发现', name: 'compass-outline' },
+const navigation = [
+  { label: '首页', name: 'home' },
+  { label: 'Miya' },
   { label: '我的', name: 'happy-outline' },
-];
+] as const;
+const summaryText = '宠物进食喝水，老人午间用餐，孩子短暂进入厨房，家人与宠物在客厅互动。';
+const summaryFrames = [
+  { left: '0%', top: '0%' },
+  { left: '-100%', top: '0%' },
+  { left: '0%', top: '-100%' },
+  { left: '-100%', top: '-100%' },
+] as const;
 
-export function Home({ deviceName, openCamera, openCare, openMiya, miyaUnread, toast, safeBottom, banner, dismissBanner }: {
+export function Home({ deviceName, openCamera, openCare, openMiya, miyaUnread, toast, safeBottom }: {
   deviceName: string;
   openCamera: (tab: CameraTab) => void; openCare: () => void; openMiya: () => void; toast: Toast; safeBottom: number;
-  miyaUnread: boolean; banner: boolean; dismissBanner: () => void;
+  miyaUnread: boolean;
 }) {
   const [showMiyaBubble, setShowMiyaBubble] = useState(true);
   const unreadLabel = miyaUnread ? '，有未读消息' : '';
@@ -52,14 +59,26 @@ export function Home({ deviceName, openCamera, openCare, openMiya, miyaUnread, t
         <Image source={media.cover} resizeMode="cover" style={c.fillImage} />
         <View style={c.play}><Icon name="play" size={16} tint="#fff" /></View>
       </Pressable>
-      {banner && <View style={c.banner}>
-        <Pressable accessibilityRole="button" accessibilityLabel="双11活动" style={StyleSheet.absoluteFill} onPress={() => toast('双11活动展示')}>
-          <Image source={media.banner} resizeMode="stretch" style={c.fillImage} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="关闭活动横幅" onPress={dismissBanner} hitSlop={6} style={c.bannerClose}>
-          <Icon name="close" size={19} tint="#fff" />
-        </Pressable>
-      </View>}
+      <Pressable accessibilityRole="button" accessibilityLabel={`今日摘要。${summaryText} 四段录像已锁定。`}
+        accessibilityHint="打开 Miya 管家对话" onPress={openMiya}
+        style={({ pressed }) => [s.card, c.summary, pressed && s.pressed]}>
+        <LinearGradient colors={['#e3f2ff', '#f1faf7']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <View style={c.summaryCopy}>
+          <View style={c.summaryTitle}>
+            <Image source={media.miya} style={c.summaryAvatar} resizeMode="contain" accessible={false} />
+            <Label size={17} bold>今日摘要</Label>
+            <Icon name="chevron-forward" size={13} tint={color.secondaryText} />
+          </View>
+          <Label size={13} tint={color.secondaryText} style={c.summaryText}>{summaryText}</Label>
+        </View>
+        <View style={c.summaryFootage} pointerEvents="none">
+          {summaryFrames.map((position, index) => <View key={index} style={c.summaryClip}>
+            <Image source={media.summaryFootage} style={[c.summaryFrame, position]} resizeMode="stretch" accessible={false} />
+            <View style={c.summaryLock}><Icon name="lock-closed" size={12} tint="#fff" /></View>
+          </View>)}
+        </View>
+      </Pressable>
       <View style={[s.card, c.shortcutCard]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={c.shortcuts}>
           {shortcuts.map(({ label, image, icon }) => <Pressable key={label} accessibilityRole="button" onPress={() => {
@@ -92,15 +111,19 @@ export function Home({ deviceName, openCamera, openCare, openMiya, miyaUnread, t
       </View>
     </ScrollView>
     <View style={[c.bottomNav, { paddingBottom: safeBottom }]}>
-      {navigation.map(({ label, name }, index) => <Pressable key={label} accessibilityRole="tab" accessibilityState={{ selected: index === 0 }}
-        accessibilityLabel={label} onPress={() => {
-          if (index === 2) openCamera('回放');
-          else if (index > 0) toast(label + ' · 功能展示');
-        }} style={[c.navItem, index === 2 && c.cloudNav]}>
-        {index === 2 ? <Image source={media.cloudTab} style={c.cloudNavImage} resizeMode="contain" /> : <Icon name={name} size={24} tint={index === 0 ? '#073e3c' : color.text} />}
-        <Label size={index === 2 ? 11 : 10} bold={index === 2} tint={index === 2 ? '#ed9557' : color.text}>{label}</Label>
-        {index === 3 && <View style={[c.redDot, c.navDot]} />}
-      </Pressable>)}
+      {navigation.map(item => {
+        const miya = item.label === 'Miya';
+        const selected = item.label === '首页';
+        return <Pressable key={item.label} accessibilityRole="tab" accessibilityState={{ selected }}
+          accessibilityLabel={item.label + (miya ? unreadLabel : '')} onPress={miya ? openMiya : item.label === '我的' ? () => toast('我的 · 功能展示') : undefined}
+          style={c.navItem}>
+          {miya ? <View>
+            <Image source={media.miya} style={c.miyaNavImage} resizeMode="contain" accessible={false} />
+            {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaNavDot]} />}
+          </View> : <Icon name={item.name} size={24} tint={selected ? '#073e3c' : color.text} />}
+          <Label size={11} bold={miya} tint={miya ? color.mintText : color.text}>{item.label}</Label>
+        </Pressable>;
+      })}
     </View>
     {showMiyaBubble && <View style={[c.miya, { bottom: safeBottom + 65 }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={'打开 Miya 管家' + unreadLabel} onPress={openMiya}
@@ -226,8 +249,15 @@ const c = StyleSheet.create({
   miyaAvatar: { width: 44, height: 44 },
   preview: { aspectRatio: 1.885, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   play: { backgroundColor: '#141517c9', height: 27, width: 27, borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingLeft: 2 },
-  banner: { aspectRatio: 4.04, borderRadius: 13, overflow: 'hidden' },
-  bannerClose: { position: 'absolute', right: 4, top: 3, padding: 2 },
+  summary: { paddingHorizontal: 13, paddingVertical: 11, gap: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
+  summaryCopy: { flex: 1, minWidth: 0, gap: 3 },
+  summaryTitle: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  summaryAvatar: { width: 30, height: 30 },
+  summaryText: { lineHeight: 19 },
+  summaryFootage: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 4 },
+  summaryClip: { width: '48.5%', aspectRatio: 16 / 9, borderRadius: 5, overflow: 'hidden', backgroundColor: '#48606b' },
+  summaryFrame: { position: 'absolute', width: '200%', height: '200%' },
+  summaryLock: { ...StyleSheet.absoluteFillObject, backgroundColor: '#13293670', alignItems: 'center', justifyContent: 'center' },
   shortcutCard: { paddingVertical: 12, overflow: 'hidden' },
   shortcuts: { alignItems: 'center' },
   shortcut: { width: 76, minHeight: 71, alignItems: 'center', justifyContent: 'center', gap: 8 },
@@ -244,9 +274,8 @@ const c = StyleSheet.create({
   dotActive: { width: 13, height: 4, backgroundColor: color.mint },
   bottomNav: { flexDirection: 'row', backgroundColor: '#fff', alignItems: 'flex-end', minHeight: 55 },
   navItem: { flex: 1, alignItems: 'center', gap: 3, paddingTop: 6, paddingBottom: 6 },
-  navDot: { right: '32%', top: 6 },
-  cloudNav: { marginTop: -17 },
-  cloudNavImage: { width: 57, height: 44 },
+  miyaNavImage: { width: 41, height: 41 },
+  miyaNavDot: { right: 0, top: 1 },
   player: { aspectRatio: 16 / 9, overflow: 'hidden', backgroundColor: '#141414' },
   fullPlayer: { flex: 1, aspectRatio: undefined },
   timestamp: { position: 'absolute', top: 1, left: 5 },

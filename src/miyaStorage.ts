@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
-import { initialTasks, initialThreads, type MiyaNotice, type MiyaTask, type MiyaThread } from './miyaDemo';
+import { initialThreads, type MiyaNotice, type MiyaTask, type MiyaThread } from './miyaDemo';
 
 type MiyaData = { tasks: MiyaTask[]; threads: MiyaThread[]; notices: MiyaNotice[] };
 const key = '@camera-care/miya-v1';
-const initialData: MiyaData = { tasks: initialTasks, threads: initialThreads, notices: [] };
+const initialData: MiyaData = { tasks: [], threads: initialThreads, notices: [] };
 
 async function loadData(): Promise<MiyaData> {
   try {

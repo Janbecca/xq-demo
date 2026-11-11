@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { callAlertCategories, media } from './demo';
-import { findMiyaEvents, presetCallAlerts } from './miyaEvents';
+import { MiyaEventDescription } from './MiyaEventDescription';
+import { presetCallAlerts } from './miyaEvents';
 import { DeviceName } from './Pairing';
 import { color, Icon, IconButton, Label, PrimaryButton, s, Segments } from './ui';
 
@@ -163,19 +164,8 @@ function MiyaEventCard({ selected, update, next, skip }: {
   next: () => void;
   skip: () => void;
 }) {
-  const [draft, setDraft] = useState('');
-  const [checkedText, setCheckedText] = useState('');
   const [categoryIndex, setCategoryIndex] = useState(2);
   const atLimit = selected.length >= eventLimit;
-  const description = draft.trim();
-  useEffect(() => {
-    if (!description || checkedText === description) return;
-    const timer = setTimeout(() => setCheckedText(description), 420);
-    return () => clearTimeout(timer);
-  }, [checkedText, description]);
-
-  const settled = !!description && checkedText === description;
-  const matches = settled ? findMiyaEvents(description) : [];
   const toggle = (event: string) => update(items => items.includes(event)
     ? items.filter(item => item !== event)
     : items.length < eventLimit ? [...items, event] : items);
@@ -186,40 +176,7 @@ function MiyaEventCard({ selected, update, next, skip }: {
       <Label size={17} bold>选择关注事件</Label>
       <Label size={13} bold tint={mintText} accessibilityLiveRegion="polite">已选 {selected.length} / {eventLimit} 项</Label>
     </View>
-    <View style={o.natural}>
-      <Label size={13} bold>用一句话描述</Label>
-      <TextInput accessibilityLabel="描述关注事件" placeholder="例如：老人摔倒、狗叫"
-        placeholderTextColor="#829091" maxLength={80} value={draft} onChangeText={setDraft}
-        onBlur={() => setCheckedText(description)} returnKeyType="done" style={o.textInput} />
-      {matches.map(({ event, source }) => {
-        const alreadySelected = selected.includes(event);
-        return <View key={event} style={o.suggestion}>
-          <Label size={13} tint={mintText} accessibilityLiveRegion="polite">
-            {'检测到已有识别项，替换成【' + event + '】识别效果更准确噢~'}
-          </Label>
-          <Pressable accessibilityRole="button" disabled={alreadySelected || atLimit}
-            accessibilityState={{ disabled: alreadySelected || atLimit }}
-            style={[o.suggestionAction, (alreadySelected || atLimit) && o.disabled]}
-            onPress={() => {
-              const replacement = draft.replace(source, event);
-              setDraft(replacement);
-              setCheckedText(replacement.trim());
-              add(event);
-            }}>
-            <Label size={13} bold tint={mintText}>{alreadySelected ? '已选 ' + event : '替换为' + event}</Label>
-          </Pressable>
-        </View>;
-      })}
-      {settled && matches.length === 0 && <View style={o.suggestion}>
-        <Label size={13} tint="#687276">暂未匹配到已有识别项</Label>
-        <Pressable accessibilityRole="button" disabled={atLimit || selected.includes(description)}
-          accessibilityState={{ disabled: atLimit || selected.includes(description) }}
-          style={[o.suggestionAction, (atLimit || selected.includes(description)) && o.disabled]}
-          onPress={() => { add(description); setDraft(''); setCheckedText(''); }}>
-          <Label size={13} bold tint={mintText}>添加为自定义事件</Label>
-        </Pressable>
-      </View>}
-    </View>
+    <MiyaEventDescription selected={selected} add={add} atLimit={atLimit} />
     <Segments labels={categoryLabels} selected={categoryIndex} onChange={setCategoryIndex} equal style={o.tabs} />
     <EventChoices categoryIndex={categoryIndex} selected={selected} toggle={toggle} atLimit={atLimit} />
     {selected.length > 0 && <View style={o.selected}>
@@ -352,10 +309,6 @@ const o = StyleSheet.create({
   value: { backgroundColor: mintSurface, borderRadius: 15, paddingHorizontal: 9, paddingVertical: 4 },
   example: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, backgroundColor: color.canvas, borderRadius: 11 },
   skip: { minHeight: 38, alignItems: 'center', justifyContent: 'center' },
-  natural: { padding: 10, borderRadius: 10, backgroundColor: color.canvas, gap: 7 },
-  textInput: { minHeight: 41, borderRadius: 8, backgroundColor: color.surface, paddingHorizontal: 10, color: color.text, fontSize: 15 },
-  suggestion: { padding: 9, backgroundColor: mintSurface, borderRadius: 9, gap: 4 },
-  suggestionAction: { minHeight: 31, justifyContent: 'center', alignSelf: 'flex-start', paddingRight: 6 },
   tabs: { backgroundColor: '#e7e9ec' },
   groupHeading: { minHeight: 33, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 7 },
   groupDivider: { borderTopColor: color.line, borderTopWidth: StyleSheet.hairlineWidth },

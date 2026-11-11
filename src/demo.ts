@@ -1,7 +1,6 @@
 export const media = {
   cover: require('../assets/camera-cover.jpg'),
   frame: require('../assets/camera-frame.jpg'),
-  banner: require('../assets/campaign.jpg'),
   playback: require('../assets/shortcut-playback.png'),
   events: require('../assets/shortcut-events.png'),
   life: require('../assets/shortcut-life.png'),
@@ -9,7 +8,7 @@ export const media = {
   cloud: require('../assets/tile-cloud.png'),
   album: require('../assets/tile-album.png'),
   call: require('../assets/tile-call.png'),
-  cloudTab: require('../assets/tab-cloud.png'),
+  summaryFootage: require('../assets/miya-summary-footage.jpg'),
   detection: require('../assets/detection-illustration.jpg'),
   camera: require('../assets/camera-avatar.png'),
   pairCamera: require('../assets/pair-camera.png'),
