@@ -53,6 +53,18 @@ export type MiyaClip = {
   device: MiyaCamera;
   attention?: boolean;
 };
+export type MiyaNotice = {
+  id: string;
+  event: string;
+  deviceName: string;
+  createdAt: number;
+  read: boolean;
+};
+export const noticeActions = [
+  { id: 'add', label: 'A. 新增关注事件', draft: '我想关注：' },
+  { id: 'manage', label: 'B. 管理我的事件', draft: '管理事件：' },
+] as const;
+export type MiyaNoticeAction = (typeof noticeActions)[number];
 type SummaryEntry = { text: string; time?: string; device?: MiyaCamera };
 type Topic = { id: string; title: string; description: string; clipIds: string[]; count?: number; attention?: boolean };
 type MiyaDay = {

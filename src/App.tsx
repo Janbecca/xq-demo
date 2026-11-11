@@ -11,16 +11,16 @@ import { defaultRule, initialRules, type Rule } from './demo';
 import { Report, Search } from './Insights';
 import { MiyaChat, MiyaHistory, type MiyaDestination } from './Miya';
 import { MiyaTaskEditor, MiyaTasks } from './MiyaNotifications';
-import { MiyaActivities, MiyaSummary, MiyaTopicDetails } from './MiyaSummary';
+import { MiyaActivities, MiyaNoticeList, MiyaSummary, MiyaTopicDetails } from './MiyaSummary';
 import { type MiyaContext, type MiyaScope, type MiyaTask, type MiyaThread, type MiyaTopic } from './miyaDemo';
 import { useMiyaData } from './miyaStorage';
 import { DeviceScanner, EmptyHome, pairingBackground, PairingStep, type PairStage } from './Pairing';
 import { RuleEditor } from './RuleEditor';
 import { color, Header, icon, Label, s } from './ui';
 
-type Screen = { id: 'home' | 'care' | 'scan' | 'miya' | 'pairedWelcome' | CareDestination | MiyaDestination }
+type Screen = { id: 'home' | 'care' | 'scan' | 'miya' | 'pairedWelcome' | 'miyaNotices' | CareDestination | MiyaDestination }
   | { id: 'camera'; tab: CameraTab; playbackSample?: PlaybackSample }
-  | { id: 'miyaChat'; threadId?: string; context?: MiyaContext; prefill?: string }
+  | { id: 'miyaChat'; threadId?: string; context?: MiyaContext; prefill?: string; manageEvent?: string }
   | { id: 'miyaTask'; taskId: string; task?: MiyaTask }
   | { id: 'miyaTopic'; topic: MiyaTopic; date: string; scope: MiyaScope }
   | { id: 'miyaActivities'; date: string; scope: MiyaScope }
@@ -30,7 +30,7 @@ const web = Platform.OS === 'web';
 const titles = {
   care: 'AI智护', detection: 'AI智能检测', report: '智能看护报告', rule: '分级告警',
   scan: '添加设备', pair: '添加智能摄像机', callAlerts: '微信通话告警',
-  miyaTasks: '通知管理', miyaSummary: '事件中心', miyaHistory: '聊天记录', miyaActivities: '当天活动',
+  miyaTasks: '事件配置', miyaSummary: '事件中心', miyaHistory: '历史记录', miyaActivities: '当天活动', miyaNotices: '事件通知',
 };
 
 function CameraCare() {
@@ -90,6 +90,18 @@ function CameraCare() {
   const saveMiyaThread = (thread: MiyaThread) => {
     setMiyaData(current => current && { ...current,
       threads: [thread, ...current.threads.filter(item => item.id !== thread.id)].sort((a, b) => b.createdAt - a.createdAt),
+    });
+  };
+  const simulateMiyaNotice = () => {
+    const createdAt = Date.now();
+    setMiyaData(current => current && { ...current, notices: [
+      { id: `notice-${createdAt}-${current.notices.length}`, event: '有人举手', deviceName: pairedName, createdAt, read: false },
+      ...current.notices,
+    ] });
+  };
+  const readMiyaNotice = (id: string) => {
+    setMiyaData(current => current && { ...current,
+      notices: current.notices.map(notice => notice.id === id ? { ...notice, read: true } : notice),
     });
   };
   const saveMiyaTask = (task: MiyaTask) => {
@@ -157,7 +169,8 @@ function CameraCare() {
               onTitlePress={id === 'search' ? () => toast('当前设备 · ' + pairedName) : undefined} />}
           {id === 'home' && (pairedName
             ? <Home deviceName={pairedName} openCamera={openCamera} openCare={() => open({ id: 'care' })} toast={toast}
-              openMiya={() => open({ id: 'miyaChat' })} banner={banner} dismissBanner={() => setBanner(false)} safeBottom={safeBottom} />
+              openMiya={() => open({ id: 'miyaChat' })} miyaUnread={miyaData.notices.some(notice => !notice.read)}
+              banner={banner} dismissBanner={() => setBanner(false)} safeBottom={safeBottom} />
             : <EmptyHome add={() => open({ id: 'scan' })} />)}
           {id === 'scan' && <DeviceScanner active={show} onScan={() => open({ id: 'pair', stage: 'prepare' })} toast={toast} />}
           {id === 'pair' && <PairingStep stage={screen.stage} active={show} next={
@@ -176,16 +189,21 @@ function CameraCare() {
           {id === 'rule' && <RuleEditor initial={screen.rule} save={save} />}
           {id === 'search' && <Search safeBottom={safeBottom} play={() => play({ title: '写作业', time: '06.25 18:32' })} />}
           {id === 'report' && <Report />}
-          {id === 'miyaChat' && <MiyaChat pairedName={pairedName} threads={miyaData.threads} initialThreadId={screen.threadId} initialContext={screen.context}
-            prefill={screen.prefill} back={back} open={destination => open({ id: destination })} save={saveMiyaThread} play={play} />}
+          {id === 'miyaChat' && <MiyaChat active={show} pairedName={pairedName} threads={miyaData.threads} notices={miyaData.notices}
+            initialThreadId={screen.threadId} initialContext={screen.context} prefill={screen.prefill} initialManageEvent={screen.manageEvent} back={back}
+            open={destination => open({ id: destination })} save={saveMiyaThread} play={play} simulateNotice={simulateMiyaNotice} readNotice={readMiyaNotice} />}
           {id === 'miyaTasks' && <MiyaTasks tasks={miyaData.tasks} add={() => open({ id: 'miyaTask', taskId: 'task-' + Date.now() })}
             edit={task => open({ id: 'miyaTask', taskId: task.id, task })} />}
           {id === 'miyaTask' && <MiyaTaskEditor id={screen.taskId} initial={screen.task} save={saveMiyaTask}
             remove={() => removeMiyaTask(screen.taskId)} cancel={back} />}
-          {id === 'miyaSummary' && <MiyaSummary pairedName={pairedName}
+          {id === 'miyaSummary' && <MiyaSummary pairedName={pairedName} noticeCount={miyaData.notices.length}
+            openNotices={() => open({ id: 'miyaNotices' })}
             openTopic={(topic, date, scope) => open({ id: 'miyaTopic', topic, date, scope })}
             openActivities={(date, scope) => open({ id: 'miyaActivities', date, scope })}
             ask={(date, scope) => open({ id: 'miyaChat', context: { date, scope }, prefill: `帮我回顾 ${date} 这一天发生了什么。` })} />}
+          {id === 'miyaNotices' && <MiyaNoticeList notices={miyaData.notices} readNotice={readMiyaNotice} play={play}
+            openEvents={() => open({ id: 'miyaTasks' })}
+            noticeAction={(action, notice) => open({ id: 'miyaChat', prefill: action.draft, manageEvent: action.id === 'manage' ? notice.event : undefined })} />}
           {id === 'miyaTopic' && <MiyaTopicDetails topic={screen.topic} date={screen.date} scope={screen.scope} pairedName={pairedName} />}
           {id === 'miyaActivities' && <MiyaActivities date={screen.date} scope={screen.scope} pairedName={pairedName} play={play} />}
           {id === 'miyaHistory' && <MiyaHistory threads={miyaData.threads} pairedName={pairedName}

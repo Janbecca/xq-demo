@@ -14,6 +14,7 @@ export const media = {
   camera: require('../assets/camera-avatar.png'),
   pairCamera: require('../assets/pair-camera.png'),
   miya: require('../assets/miya-avatar.png'),
+  miyaHomeIcon: require('../assets/miya-home-icon.png'),
 };
 
 export const callAlertCategories = [

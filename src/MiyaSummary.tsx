@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import type { PlaybackSample } from './Camera';
 import { media } from './demo';
 import { MiyaClipRow, MiyaScopePicker } from './Miya';
-import { dailySummary, failedSummaryDate, scopeName, summaryDates, summaryToday, type MiyaClip, type MiyaScope, type MiyaTopic } from './miyaDemo';
+import { MiyaNoticeCard } from './MiyaNoticeCard';
+import { dailySummary, failedSummaryDate, scopeName, summaryDates, summaryToday, type MiyaClip, type MiyaNotice, type MiyaNoticeAction, type MiyaScope, type MiyaTopic } from './miyaDemo';
 import { color, Icon, Label, s, SelectionCheck, Sheet } from './ui';
 
-export function MiyaSummary({ pairedName, openTopic, openActivities, ask }: {
-  pairedName: string;
+export function MiyaSummary({ pairedName, noticeCount, openNotices, openTopic, openActivities, ask }: {
+  pairedName: string; noticeCount: number; openNotices: () => void;
   openTopic: (topic: MiyaTopic, date: string, scope: MiyaScope) => void;
   openActivities: (date: string, scope: MiyaScope) => void;
   ask: (date: string, scope: MiyaScope) => void;
@@ -98,6 +100,13 @@ export function MiyaSummary({ pairedName, openTopic, openActivities, ask }: {
           </Pressable>)}
         </View>
       </View>}
+      <Pressable accessibilityRole="button" accessibilityLabel="事件通知" onPress={openNotices}
+        style={({ pressed }) => [s.card, a.activities, pressed && s.pressed]}>
+        <View style={s.mintBadge}><Icon name="notifications-outline" tint={color.mintText} size={19} /></View>
+        <Label size={16} style={s.fill}>事件通知</Label>
+        <Label size={13} tint={color.secondaryText}>{noticeCount} 条</Label>
+        <Icon name="chevron-forward" size={16} tint={color.muted} />
+      </Pressable>
       <Pressable accessibilityRole="button" onPress={() => openActivities(date, scope)} style={[s.card, a.activities]}>
         <View style={s.mintBadge}><Icon name="list-outline" tint={color.mintText} size={19} /></View>
         <View style={s.fill}><Label size={16}>查看当天活动</Label><Label size={12} tint={color.secondaryText}>{date} · {scopeName(scope, pairedName)}</Label></View>
@@ -120,6 +129,17 @@ export function MiyaSummary({ pairedName, openTopic, openActivities, ask }: {
       setExpanded(false);
     }} onClose={() => setChoosingScope(false)} />}
   </>;
+}
+
+export function MiyaNoticeList({ notices, readNotice, play, openEvents, noticeAction }: {
+  notices: MiyaNotice[]; readNotice: (id: string) => void; play: (sample: PlaybackSample) => void;
+  openEvents: () => void; noticeAction: (action: MiyaNoticeAction, notice: MiyaNotice) => void;
+}) {
+  return <ScrollView contentContainerStyle={a.content} showsVerticalScrollIndicator={false}>
+    {notices.length ? notices.map(notice => <MiyaNoticeCard key={notice.id} notice={notice}
+      read={readNotice} play={play} openEvents={openEvents} onAction={noticeAction} />)
+      : <View style={a.empty}><Label size={14} tint={color.secondaryText}>暂无事件通知</Label></View>}
+  </ScrollView>;
 }
 
 export function MiyaTopicDetails({ topic, date, scope, pairedName }: {

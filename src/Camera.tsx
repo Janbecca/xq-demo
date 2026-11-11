@@ -21,11 +21,13 @@ const navigation: { label: string; name: IconName }[] = [
   { label: '我的', name: 'happy-outline' },
 ];
 
-export function Home({ deviceName, openCamera, openCare, openMiya, toast, safeBottom, banner, dismissBanner }: {
+export function Home({ deviceName, openCamera, openCare, openMiya, miyaUnread, toast, safeBottom, banner, dismissBanner }: {
   deviceName: string;
   openCamera: (tab: CameraTab) => void; openCare: () => void; openMiya: () => void; toast: Toast; safeBottom: number;
-  banner: boolean; dismissBanner: () => void;
+  miyaUnread: boolean; banner: boolean; dismissBanner: () => void;
 }) {
+  const [showMiyaBubble, setShowMiyaBubble] = useState(true);
+  const unreadLabel = miyaUnread ? '，有未读消息' : '';
   return <View style={s.fill}>
     <View style={c.homeHeader}>
       <Pressable accessibilityRole="button" onPress={() => toast(deviceName)} style={c.deviceTitle}>
@@ -38,6 +40,11 @@ export function Home({ deviceName, openCamera, openCare, openMiya, toast, safeBo
           <View pointerEvents="none" style={c.redDot} />
         </View>
         <IconButton name="ellipsis-horizontal-circle" label="更多" size={25} onPress={() => toast('当前设备 · ' + deviceName)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={'首页顶部打开 Miya 管家' + unreadLabel} onPress={openMiya}
+          style={({ pressed }) => [s.iconButton, pressed && s.pressed]}>
+          <Image source={media.miyaHomeIcon} style={c.miyaHeaderIcon} resizeMode="contain" accessible={false} />
+          {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaHeaderDot]} />}
+        </Pressable>
       </View>
     </View>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={c.homeContent}>
@@ -95,11 +102,17 @@ export function Home({ deviceName, openCamera, openCare, openMiya, toast, safeBo
         {index === 3 && <View style={[c.redDot, c.navDot]} />}
       </Pressable>)}
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel="打开 Miya 管家" onPress={openMiya}
-      style={({ pressed }) => [c.miya, { bottom: safeBottom + 65 }, pressed && s.pressed]}>
-      <Image source={media.miya} style={c.miyaAvatar} resizeMode="contain" />
-      <Label size={10} bold tint={color.mintText}>Miya 管家</Label>
-    </Pressable>
+    {showMiyaBubble && <View style={[c.miya, { bottom: safeBottom + 65 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={'打开 Miya 管家' + unreadLabel} onPress={openMiya}
+        style={({ pressed }) => [c.miyaTrigger, pressed && s.pressed]}>
+        <Image source={media.miya} style={c.miyaAvatar} resizeMode="contain" accessible={false} />
+        {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaBubbleDot]} />}
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="关闭 Miya 悬浮气泡" onPress={() => setShowMiyaBubble(false)}
+        hitSlop={6} style={({ pressed }) => [c.miyaClose, pressed && s.pressed]}>
+        <Icon name="close" size={12} tint={color.secondaryText} />
+      </Pressable>
+    </View>}
   </View>;
 }
 
@@ -203,8 +216,13 @@ const c = StyleSheet.create({
   headerActions: { flexDirection: 'row' },
   redDot: { position: 'absolute', right: 8, top: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff494b' },
   homeContent: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 76, gap: 11 },
-  miya: { position: 'absolute', right: 13, zIndex: 2, alignItems: 'center', justifyContent: 'center', gap: 2,
-    minWidth: 61, paddingHorizontal: 7, paddingVertical: 5 },
+  miyaHeaderIcon: { width: 30, height: 30 },
+  miyaHeaderDot: { right: 5, top: 5 },
+  miya: { position: 'absolute', right: 13, zIndex: 2 },
+  miyaTrigger: { alignItems: 'center', justifyContent: 'center', minWidth: 61, paddingHorizontal: 7, paddingVertical: 5 },
+  miyaBubbleDot: { left: 8, right: undefined, top: 6 },
+  miyaClose: { position: 'absolute', right: 0, top: 0, width: 18, height: 18, borderRadius: 9,
+    backgroundColor: color.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: '#d7dadd', alignItems: 'center', justifyContent: 'center' },
   miyaAvatar: { width: 44, height: 44 },
   preview: { aspectRatio: 1.885, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   play: { backgroundColor: '#141517c9', height: 27, width: 27, borderRadius: 15, alignItems: 'center', justifyContent: 'center', paddingLeft: 2 },

@@ -1,17 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
-import { initialTasks, initialThreads, type MiyaTask, type MiyaThread } from './miyaDemo';
+import { initialTasks, initialThreads, type MiyaNotice, type MiyaTask, type MiyaThread } from './miyaDemo';
 
-type MiyaData = { tasks: MiyaTask[]; threads: MiyaThread[] };
+type MiyaData = { tasks: MiyaTask[]; threads: MiyaThread[]; notices: MiyaNotice[] };
 const key = '@camera-care/miya-v1';
-const initialData: MiyaData = { tasks: initialTasks, threads: initialThreads };
+const initialData: MiyaData = { tasks: initialTasks, threads: initialThreads, notices: [] };
 
 async function loadData(): Promise<MiyaData> {
   try {
     const stored = await AsyncStorage.getItem(key);
     if (stored) {
       const data: Partial<MiyaData> = JSON.parse(stored);
-      if (Array.isArray(data?.tasks) && Array.isArray(data?.threads)) return { tasks: data.tasks, threads: data.threads };
+      if (Array.isArray(data?.tasks) && Array.isArray(data?.threads)) {
+        return { tasks: data.tasks, threads: data.threads, notices: Array.isArray(data.notices) ? data.notices : [] };
+      }
     }
   } catch {
     // Storage can be unavailable in a browser's private mode.

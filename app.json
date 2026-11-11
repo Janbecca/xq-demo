@@ -5,6 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "允许摄像机智护使用麦克风，向 Miya 输入语音。",
+          "speechRecognitionPermission": "允许摄像机智护将你向 Miya 输入的语音转为文字。"
+        }
+      ]
+    ],
     "ios": {
       "bundleIdentifier": "com.cameracare.demo",
       "supportsTablet": false
