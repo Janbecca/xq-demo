@@ -1,20 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { PlaybackSample } from './Camera';
 import { media, twoDigits } from './demo';
+import { MiyaDailyBrief, MiyaFunctionMenu, type MiyaDestination } from './MiyaHome';
 import { MiyaNoticeCard } from './MiyaNoticeCard';
 import { MiyaTaskChangeCard } from './MiyaNotifications';
 import { defaultTask, demoReply, scopeName, scopes, type MiyaClip, type MiyaContext, type MiyaMessage, type MiyaNotice, type MiyaScope, type MiyaTask, type MiyaThread } from './miyaDemo';
 import { interpretTaskRequest, linkedNoticeTask } from './miyaTaskIntent';
 import { AssistantSendButton, color, Icon, IconButton, Label, s, SelectionCheck, Sheet, type IconName } from './ui';
 import { useMiyaVoice } from './useMiyaVoice';
-
-const destinations = [
-  { id: 'miyaTasks', label: '事件配置', icon: 'notifications-outline' },
-  { id: 'miyaSummary', label: '今日总结', icon: 'layers-outline' },
-  { id: 'miyaNotices', label: '事件通知', icon: 'mail-unread-outline' },
-] as const satisfies readonly { id: string; label: string; icon: IconName }[];
-export type MiyaDestination = (typeof destinations)[number]['id'];
 
 const prompts: { text: string; icon: IconName; tint: string }[] = [
   { text: '昨天家里发生了什么？', icon: 'document-text', tint: color.orange },
@@ -79,10 +73,12 @@ function threadTimestamp(createdAt: number) {
   };
 }
 
-export function MiyaChat({ active, pairedName, threads, notices, tasks, initialContext, prefill, back, open, save, play, simulateNotice, readNotice, resolveChange }: {
+export function MiyaChat({ active, pairedName, threads, notices, tasks, initialContext, prefill, back, open, openLive, openSettings, save, play, simulateNotice, readNotice, resolveChange }: {
   active: boolean; pairedName: string; threads: MiyaThread[]; notices: MiyaNotice[]; tasks: MiyaTask[];
   initialContext?: MiyaContext; prefill?: string;
-  back: () => void; open: (screen: MiyaDestination) => void; save: (thread: MiyaThread) => void;
+  back?: () => void; open: (screen: MiyaDestination) => void;
+  openLive: () => void; openSettings: () => void;
+  save: (thread: MiyaThread) => void;
   play: (sample: PlaybackSample) => void; simulateNotice: () => void; readNotice: (id: string) => void;
   resolveChange: (threadId: string, index: number, confirmed?: MiyaTask) => void;
 }) {
@@ -93,6 +89,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
   const [addingEvent, setAddingEvent] = useState(false);
   const [showFirstNotice, setShowFirstNotice] = useState(true);
   const [retainedNoticeIds, setRetainedNoticeIds] = useState<string[]>([]);
+  const [hasSentSinceOpening, setHasSentSinceOpening] = useState(false);
   const [promptsHeight, setPromptsHeight] = useState(0);
   const [choosingScope, setChoosingScope] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -116,7 +113,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
     ...notices.filter(item => item.read && !retainedNoticeIds.includes(item.id)),
   ].sort((a, b) => a.createdAt - b.createdAt);
   const hasArchive = archive.length > 0;
-  const showPrompts = latestChange?.status !== 'pending' && (!messages.length || currentNotices.length > 0);
+  const showPrompts = !hasSentSinceOpening;
   const showNoticeFirst = showFirstNotice && currentNotices.length > 0;
   const changeOffset = !showNoticeFirst && changeKey && changePosition?.key === changeKey ? changePosition.y : undefined;
   const latestOffset = (hasArchive ? archiveHeight : 0) + (showNoticeFirst ? 0 : changeOffset ?? Math.max(0, conversationHeight - viewportHeight));
@@ -133,6 +130,17 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
     const frame = requestAnimationFrame(() => setPositioned(true));
     return () => cancelAnimationFrame(frame);
   }, [active, layoutReady, latestOffset, archiveHeight, scrollReason, changeKey, changeOffset, showNoticeFirst]);
+  useEffect(() => {
+    if (!active) setHasSentSinceOpening(false);
+  }, [active]);
+  useEffect(() => {
+    if (!active || !expanded) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setExpanded(false);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [active, expanded]);
   const voice = useMiyaVoice(active, text => {
     setDraft(current => [current.trimEnd(), text].filter(Boolean).join(' ').slice(0, maxDraftLength));
   });
@@ -158,6 +166,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
     const request = interpretTaskRequest(question, tasks, 'task-chat-' + createdAt, addingEvent);
     const reply: MiyaMessage = request ? { role: 'miya', ...request } : demoReply(question, context);
     appendMessages(question, [{ role: 'user', text: question }, reply], createdAt);
+    setHasSentSinceOpening(true);
     setDraft('');
     if (!request || request.taskChange) setAddingEvent(false);
   }
@@ -214,22 +223,25 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
 
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.fill}>
     <View style={[s.header, m.header]}>
-      <View style={s.back}><IconButton name="chevron-back" size={24} label="返回" onPress={back} /></View>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={toggleMenu} style={s.titleButton}>
+      {back && <View style={s.back}><IconButton name="chevron-back" size={24} label="返回" onPress={back} /></View>}
+      {!back && thread && <View style={s.back}><IconButton name="add-circle-outline" label="新对话" onPress={newChat} /></View>}
+      <Pressable accessibilityRole="button" accessibilityLabel="Miya 管家" accessibilityHint={expanded ? '收起功能面板' : '展开功能面板'}
+        aria-expanded={expanded} accessibilityState={{ expanded }} onPress={toggleMenu} style={[s.titleButton, m.titleButton]}>
         <Image source={media.miya} style={m.headerAvatar} resizeMode="contain" accessible={false} />
-        <Label size={18} bold>Miya 管家</Label><Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={15} />
+        <View style={m.titleCopy}>
+          <Label size={18} bold>Miya 管家</Label>
+          <Label size={11} tint={color.secondaryText} numberOfLines={1}>{pairedName}</Label>
+        </View>
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={15} tint={color.secondaryText} />
       </Pressable>
-      {thread && <View style={s.headerRight}><IconButton name="add-circle-outline" label="新对话" onPress={newChat} /></View>}
+      <View style={[s.headerRight, m.headerActions]}>
+        {back && thread && <IconButton name="add-circle-outline" label="新对话" onPress={newChat} />}
+        <IconButton name="settings-outline" size={22} label="设置" onPress={() => { setExpanded(false); openSettings(); }} />
+      </View>
     </View>
-    {expanded && <View style={[s.card, m.menu]}>
-      {destinations.map(item => <Pressable key={item.id} accessibilityRole="button" onPress={() => open(item.id)}
-        style={({ pressed }) => [m.menuItem, pressed && s.pressed]}>
-        <View style={s.mintBadge}><Icon name={item.icon} tint={color.mintText} size={19} /></View>
-        <Label size={14}>{item.label}</Label>
-      </Pressable>)}
-    </View>}
     <View style={m.chatArea}>
       <ScrollView ref={scroll} style={[s.fill, !positioned && m.awaitingLayout]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        accessibilityElementsHidden={expanded} importantForAccessibility={expanded ? 'no-hide-descendants' : 'auto'} aria-hidden={expanded}
         onScroll={({ nativeEvent }) => { scrollY.current = nativeEvent.contentOffset.y; }} scrollEventThrottle={16}
         onLayout={({ nativeEvent }) => { if (nativeEvent.layout.height > 0) setViewportHeight(nativeEvent.layout.height); }}>
         {hasArchive && <View style={m.chatArchive} onLayout={({ nativeEvent }) => {
@@ -255,20 +267,23 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
           {thread && <MiyaMessages thread={thread} pairedName={pairedName} play={play} savedEvents={savedEvents} resolveChange={resolveChange}
             onLastChangeLayout={changeKey ? y => setChangePosition(previous =>
               previous?.key === changeKey && previous.y === y ? previous : { key: changeKey, y }) : undefined} />}
-          {!messages.length && !currentNotices.length && <View style={m.hero}>
+          {!messages.length && !currentNotices.length && <View style={[m.hero, !back && m.homeHero]}>
             <Image source={media.miya} style={m.avatar} resizeMode="contain" accessibilityLabel="Miya 管家头像" />
             <Label size={21} bold>你好，我是 Miya</Label>
-            <Label size={14} tint={color.secondaryText}>有什么想了解的，可以问我。</Label>
+            {back ? <Label size={14} tint={color.secondaryText}>有什么想了解的，可以问我。</Label> : <MiyaDailyBrief />}
           </View>}
         </View>
       </ScrollView>
-      {showPrompts && <View pointerEvents="box-none" style={m.prompts}
+      {showPrompts && <View pointerEvents="box-none" style={m.prompts} aria-hidden={expanded}
         onLayout={({ nativeEvent }) => setPromptsHeight(nativeEvent.layout.height)}>
         {prompts.map(({ text, icon, tint }) => <Pressable key={text} accessibilityRole="button"
           onPress={() => { voice.cancel(); setDraft(text); input.current?.focus(); }} style={({ pressed }) => [m.prompt, pressed && s.pressed]}>
           <Icon name={icon} size={15} tint={tint} /><Label size={14} style={m.promptText}>{text}</Label>
         </Pressable>)}
       </View>}
+      {expanded && <MiyaFunctionMenu close={() => setExpanded(false)} hasUnread={notices.some(notice => !notice.read)}
+        open={destination => { setExpanded(false); open(destination); }}
+        openLive={() => { setExpanded(false); openLive(); }} />}
     </View>
     <View style={m.composer}>
       <View style={[m.context, s.divider]}>
@@ -289,7 +304,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
         <TextInput ref={input} style={m.input} value={draft} onChangeText={setDraft}
           accessibilityLabel="输入消息" placeholder="问问 Miya" placeholderTextColor="#b9bbbf"
           editable={!voiceBusy} maxLength={maxDraftLength} multiline returnKeyType="send" submitBehavior="submit"
-          blurOnSubmit={Platform.OS === 'web' ? true : undefined} onSubmitEditing={send} />
+          onFocus={() => setExpanded(false)} blurOnSubmit={Platform.OS === 'web' ? true : undefined} onSubmitEditing={send} />
         <Pressable accessibilityRole="button" accessibilityLabel={listening ? '结束语音输入' : '语音输入'}
           accessibilityState={{ disabled: voicePending, busy: voicePending }} disabled={voicePending}
           onPress={() => { if (!voiceBusy) Keyboard.dismiss(); void voice.toggle(); }}
@@ -306,10 +321,11 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
 }
 
 const m = StyleSheet.create({
-  header: { height: 51 },
+  header: { height: 58 },
+  headerActions: { flexDirection: 'row' },
   headerAvatar: { width: 34, height: 34 },
-  menu: { flexDirection: 'row', marginHorizontal: 16, paddingVertical: 8 },
-  menuItem: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 64, gap: 5 },
+  titleButton: { gap: 7, minHeight: 48 },
+  titleCopy: { flexShrink: 1 },
   chatArea: { flex: 1, minHeight: 0 },
   chatContent: { padding: 16, gap: 12 },
   awaitingLayout: { opacity: 0 },
@@ -318,6 +334,7 @@ const m = StyleSheet.create({
   archiveLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#d7dadd' },
   archiveTimestamp: { textAlign: 'center' },
   hero: { flex: 1, minHeight: 184, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  homeHero: { gap: 9 },
   avatar: { width: 146, height: 146, marginBottom: 3 },
   prompts: { position: 'absolute', right: 16, left: 16, bottom: 0, gap: 7, alignItems: 'flex-start', paddingBottom: 8 },
   prompt: { backgroundColor: 'rgba(214,224,231,0.68)', borderRadius: 18, minHeight: 34, maxWidth: '100%',

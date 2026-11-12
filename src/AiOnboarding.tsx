@@ -277,20 +277,6 @@ function ServiceProgress({ events, next }: { events: readonly string[]; next: ()
   </View>;
 }
 
-export function PairedWelcome({ name, next }: { name: string; next: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(next, 2000);
-    return () => clearTimeout(timer);
-  }, [next]);
-  return <View style={o.splash}>
-    <Image source={avatar} style={o.splashAvatar} resizeMode="contain" accessibilityLabel="Miya管家" />
-    <Label size={28} bold accessibilityRole="header">欢迎使用</Label>
-    <Label size={16} tint="#687276" style={o.splashText}>
-      你的 <Label size={16} bold>{name}</Label> 已准备就绪。
-    </Label>
-  </View>;
-}
-
 const o = StyleSheet.create({
   header: { height: 51, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 },
   back: { position: 'absolute', left: 8 },
@@ -326,7 +312,4 @@ const o = StyleSheet.create({
   pickerSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7, gap: 8 },
   service: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 39, paddingHorizontal: 9, gap: 8, borderRadius: 8, backgroundColor: color.canvas },
   serviceActive: { backgroundColor: mintSurface },
-  splash: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 22, gap: 13 },
-  splashAvatar: { width: 146, height: 146 },
-  splashText: { textAlign: 'center' },
 });

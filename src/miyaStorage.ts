@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { initialThreads, type MiyaNotice, type MiyaTask, type MiyaThread } from './miyaDemo';
 
-type MiyaData = { tasks: MiyaTask[]; threads: MiyaThread[]; notices: MiyaNotice[] };
+export type HomeMode = 'conversation' | 'classic';
+type MiyaData = { tasks: MiyaTask[]; threads: MiyaThread[]; notices: MiyaNotice[]; homeMode: HomeMode };
 const key = '@camera-care/miya-v1';
-const initialData: MiyaData = { tasks: [], threads: initialThreads, notices: [] };
+const initialData: MiyaData = { tasks: [], threads: initialThreads, notices: [], homeMode: 'conversation' };
 
 async function loadData(): Promise<MiyaData> {
   try {
@@ -12,7 +13,10 @@ async function loadData(): Promise<MiyaData> {
     if (stored) {
       const data: Partial<MiyaData> = JSON.parse(stored);
       if (Array.isArray(data?.tasks) && Array.isArray(data?.threads)) {
-        return { tasks: data.tasks, threads: data.threads, notices: Array.isArray(data.notices) ? data.notices : [] };
+        return {
+          tasks: data.tasks, threads: data.threads, notices: Array.isArray(data.notices) ? data.notices : [],
+          homeMode: data.homeMode === 'classic' ? 'classic' : 'conversation',
+        };
       }
     }
   } catch {

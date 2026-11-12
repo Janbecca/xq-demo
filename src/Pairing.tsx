@@ -8,15 +8,14 @@ import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 import { media } from './demo';
 import { color, Icon, IconButton, Label, PrimaryButton, Row, s, Sheet } from './ui';
 
-export type PairStage = 'prepare' | 'network' | 'connecting' | 'success';
-const steps = ['准备', '选择网络', '连接设备', '完成'];
-const stageIndex: Record<PairStage, number> = { prepare: 0, network: 1, connecting: 2, success: 3 };
+export type PairStage = 'prepare' | 'network' | 'connecting';
+const steps = ['准备', '选择网络', '连接设备'];
+const stageIndex: Record<PairStage, number> = { prepare: 0, network: 1, connecting: 2 };
 const categories = ['锁具', '猫眼', '摄像机', '网关', '保险箱'];
 const networks = ['777', 'Home_2.4G', 'Camera_2.4G'];
 const assets = {
   scan: require('../assets/pair-scan.jpg'),
   wifi: require('../assets/pair-wifi.png'),
-  success: require('../assets/pair-success.png'),
   bluetooth: require('../assets/pair-bluetooth.png'),
   bluetoothRing: require('../assets/pair-bluetooth-ring.png'),
   connect: require('../assets/pair-connect.png'),
@@ -129,14 +128,13 @@ export function PairingStep({ stage, active, next }: { stage: PairStage; active:
     {stage === 'prepare' && <Prepare active={active} next={next} />}
     {stage === 'network' && <Network next={next} />}
     {stage === 'connecting' && <Connecting active={active} next={next} />}
-    {stage === 'success' && <PairingSuccess next={next} />}
   </View>;
 }
 
 function StepProgress({ stage }: { stage: PairStage }) {
   const current = stageIndex[stage];
-  return <View accessible accessibilityLabel={`配网进度，第 ${current + 1} 步，共 4 步，${steps[current]}`} style={p.stepper}>
-    <View style={p.track}><View style={[p.trackDone, { width: `${current / 3 * 100}%` }]} /></View>
+  return <View accessible accessibilityLabel={`配网进度，第 ${current + 1} 步，共 ${steps.length} 步，${steps[current]}`} style={p.stepper}>
+    <View style={p.track}><View style={[p.trackDone, { width: `${current / (steps.length - 1) * 100}%` }]} /></View>
     {steps.map((step, index) => <View key={step} style={p.step}>
       <View style={[p.stepHalo, index <= current && p.stepHaloOn]}>
         <View style={[p.stepDot, index <= current && p.stepDotOn]} />
@@ -268,17 +266,6 @@ function Connecting({ active, next }: { active: boolean; next: () => void }) {
   return <DeviceStatus active={active} mode="connecting" />;
 }
 
-function PairingSuccess({ next }: { next: () => void }) {
-  const { height } = useWindowDimensions();
-  return <>
-    <ScrollView style={s.fill} contentContainerStyle={[p.successContent, { paddingTop: Math.min(89, height * 0.102) }]}>
-      <Image source={assets.success} style={p.successArt} resizeMode="contain" />
-      <Label size={17} accessibilityLiveRegion="polite" style={p.successText}>连接成功</Label>
-    </ScrollView>
-    <StepFooter label="完成" action={next} />
-  </>;
-}
-
 export function DeviceName({ confirm }: { confirm: (name: string) => void }) {
   const [name, setName] = useState('CN5摄像机');
   const input = useRef<TextInput>(null);
@@ -347,9 +334,6 @@ const p = StyleSheet.create({
   passwordLabel: { marginTop: 28 },
   passwordRow: { height: 48, flexDirection: 'row', alignItems: 'center' },
   input: { minWidth: 0, flex: 1, minHeight: 44, color: color.text, fontSize: 16, paddingVertical: 0 },
-  successContent: { alignItems: 'center' },
-  successArt: { width: 116, height: 116 },
-  successText: { marginTop: 22 },
   sheetOptions: { paddingHorizontal: 17 },
   sheetCopy: { paddingHorizontal: 17, paddingBottom: 24, lineHeight: 24 },
   nameContent: { padding: 14, gap: 12 },
