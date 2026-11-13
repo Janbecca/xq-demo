@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { callAlertCategories, media } from './demo';
+import { AccessibilityInfo, ActivityIndicator, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { callAlertCategories } from './demo';
+import { MiyaAvatar } from './MiyaAvatar';
 import { MiyaEventDescription } from './MiyaEventDescription';
 import { presetCallAlerts } from './miyaEvents';
 import { DeviceName } from './Pairing';
 import { color, Icon, IconButton, Label, PrimaryButton, s, Segments } from './ui';
 
-const avatar = media.miya;
 const categoryLabels = callAlertCategories.map(category => category.label);
 const capabilities = ['AI智能检测', 'AI智能告警', 'AI智搜', '家人/宠物守护周报'];
 const eventLimit = 4;
@@ -35,7 +35,7 @@ function Skip({ action, label }: { action: () => void; label: string }) {
 
 function MiyaMessage({ text }: { text: string }) {
   return <View style={o.message}>
-    <Image source={avatar} style={o.messageAvatar} resizeMode="contain" />
+    <MiyaAvatar style={o.messageAvatar} />
     <Label size={15} style={[s.card, o.bubble]}>{text}</Label>
   </View>;
 }
@@ -106,7 +106,7 @@ export function MiyaOnboarding({ back, confirm }: {
   return <KeyboardAvoidingView style={s.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={o.header}>
       <View style={o.back}><IconButton name="chevron-back" size={24} label="返回" onPress={back} /></View>
-      <Image source={avatar} style={o.headerAvatar} resizeMode="contain" />
+      <MiyaAvatar style={o.headerAvatar} />
       <Label size={18} bold>Miya管家</Label>
     </View>
     <ScrollView ref={scroll} style={s.fill} contentContainerStyle={o.feed} showsVerticalScrollIndicator={false}

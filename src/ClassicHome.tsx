@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { CameraTab } from './Camera';
 import { media } from './demo';
+import { MiyaAvatar } from './MiyaAvatar';
 import { color, Icon, IconButton, Label, s } from './ui';
 
 const shortcuts = [
@@ -46,7 +47,7 @@ export function ClassicHome({ deviceName, openCamera, openCare, openMiya, openSe
         <IconButton name="ellipsis-horizontal-circle" label="更多" size={25} onPress={openSettings} />
         <Pressable accessibilityRole="button" accessibilityLabel={'首页顶部打开 Miya 管家' + unreadLabel} onPress={openMiya}
           style={({ pressed }) => [s.iconButton, pressed && s.pressed]}>
-          <Image source={media.miyaHomeIcon} style={c.miyaHeaderIcon} resizeMode="contain" accessible={false} />
+          <MiyaAvatar style={c.miyaHeaderIcon} />
           {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaHeaderDot]} />}
         </Pressable>
       </View>
@@ -63,7 +64,7 @@ export function ClassicHome({ deviceName, openCamera, openCare, openMiya, openSe
           style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={c.summaryCopy}>
           <View style={c.summaryTitle}>
-            <Image source={media.miya} style={c.summaryAvatar} resizeMode="contain" accessible={false} />
+            <MiyaAvatar style={c.summaryAvatar} />
             <Label size={17} bold>今日摘要</Label>
             <Icon name="chevron-forward" size={13} tint={color.secondaryText} />
           </View>
@@ -116,7 +117,7 @@ export function ClassicHome({ deviceName, openCamera, openCare, openMiya, openSe
           accessibilityLabel={item.label + (miya ? unreadLabel : '')} onPress={miya ? openMiya : item.label === '我的' ? () => toast('我的 · 功能展示') : undefined}
           style={c.navItem}>
           {miya ? <View>
-            <Image source={media.miya} style={c.miyaNavImage} resizeMode="contain" accessible={false} />
+            <MiyaAvatar style={c.miyaNavImage} />
             {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaNavDot]} />}
           </View> : <Icon name={item.name} size={24} tint={selected ? '#073e3c' : color.text} />}
           <Label size={11} bold={miya} tint={miya ? color.mintText : color.text}>{item.label}</Label>
@@ -126,7 +127,7 @@ export function ClassicHome({ deviceName, openCamera, openCare, openMiya, openSe
     {showMiyaBubble && <View style={[c.miya, { bottom: safeBottom + 65 }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={'打开 Miya 管家' + unreadLabel} onPress={openMiya}
         style={({ pressed }) => [c.miyaTrigger, pressed && s.pressed]}>
-        <Image source={media.miya} style={c.miyaAvatar} resizeMode="contain" accessible={false} />
+        <MiyaAvatar style={c.miyaAvatar} />
         {miyaUnread && <View pointerEvents="none" style={[c.redDot, c.miyaBubbleDot]} />}
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="关闭 Miya 悬浮气泡" onPress={() => setShowMiyaBubble(false)}

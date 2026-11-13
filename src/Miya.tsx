@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { PlaybackSample } from './Camera';
 import { media, twoDigits } from './demo';
+import { MiyaAvatar } from './MiyaAvatar';
 import { MiyaFunctionMenu, MiyaLivePreview, type MiyaDestination } from './MiyaHome';
 import { MiyaNoticeCard } from './MiyaNoticeCard';
 import { MiyaTaskChangeCard } from './MiyaNotifications';
@@ -241,7 +242,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
       <View style={s.back}><IconButton name="chevron-back" size={24} label="返回" onPress={back} /></View>
       <Pressable accessibilityRole="button" accessibilityLabel="Miya 管家" accessibilityHint={expanded ? '收起功能面板' : '展开功能面板'}
         aria-expanded={expanded} accessibilityState={{ expanded }} onPress={toggleMenu} style={[s.titleButton, m.titleButton]}>
-        <Image source={media.miya} style={m.headerAvatar} resizeMode="contain" accessible={false} />
+        <MiyaAvatar style={m.headerAvatar} />
         <View style={m.titleCopy}>
           <Label size={18} bold>Miya 管家</Label>
           <Label size={11} tint={color.secondaryText} numberOfLines={1}>{pairedName}</Label>
@@ -254,7 +255,7 @@ export function MiyaChat({ active, pairedName, threads, notices, tasks, initialC
     </View>}
     <View style={m.chatArea}>
       {home && <View style={m.homeChatHeader}>
-        <Image source={media.miya} style={m.headerAvatar} resizeMode="contain" accessible={false} />
+        <MiyaAvatar style={m.headerAvatar} />
         <Label size={15} bold>Miya 管家</Label>
       </View>}
       <ScrollView ref={scroll} style={[s.fill, !positioned && m.awaitingLayout]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
