@@ -15,7 +15,7 @@ import { MiyaChat } from './Miya';
 import type { MiyaDestination } from './MiyaHome';
 import { MiyaTaskEditor, MiyaTasks } from './MiyaNotifications';
 import { MiyaActivities, MiyaNoticeList, MiyaSummary, MiyaTopicDetails } from './MiyaSummary';
-import { defaultTask, demoNoticeEvents, type MiyaContext, type MiyaScope, type MiyaTask, type MiyaThread, type MiyaTopic } from './miyaDemo';
+import { defaultTask, demoNoticeEvents, demoPackageNotice, type MiyaContext, type MiyaScope, type MiyaTask, type MiyaThread, type MiyaTopic } from './miyaDemo';
 import { useMiyaData, type HomeMode } from './miyaStorage';
 import { DeviceScanner, EmptyHome, pairingBackground, PairingStep, type PairStage } from './Pairing';
 import { RuleEditor } from './RuleEditor';
@@ -84,7 +84,13 @@ function CameraCare() {
     setMiyaData(current => {
       if (!current) return current;
       const newEvents = events.filter(event => !current.tasks.some(task => task.events.includes(event)));
-      return newEvents.length ? { ...current, tasks: [...current.tasks, { ...defaultTask, id, events: newEvents }] } : current;
+      const tasks = newEvents.length ? [...current.tasks, { ...defaultTask, id, events: newEvents }] : current.tasks;
+      const packageTask = tasks.find(task => task.events.includes(demoPackageNotice.event));
+      const notices = !current.notices.length && (!tasks.some(task => task.events.length) || packageTask) ? [{
+        ...demoPackageNotice, id: 'demo-package', deviceName: '门口摄像机', createdAt: Date.parse('2026-11-10T18:32:00+08:00'),
+        read: false, taskId: packageTask?.id, fromFollowed: !!packageTask,
+      }] : current.notices;
+      return { ...current, tasks, notices };
     });
     setStack([{ id: 'pairedHome' }]);
   };

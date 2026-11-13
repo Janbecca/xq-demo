@@ -132,7 +132,7 @@ export function MiyaTaskChangeCard({ change, initiallyExpanded, savedEvents, con
   const removing = kind === 'remove';
   const editable = status === 'pending' && !removing;
   const title = removing ? '取消关注 ' + task.events.join('、') : `${task.events.join('、')}，${taskDays(task.days)} ${taskHours(task)}`;
-  return <View style={[s.card, n.changeCard]}>
+  return <View style={n.changeCard}>
     <View style={n.changeHeader}>
       <Label size={16} bold style={s.fill}>{title}</Label>
       {editable && <Pressable accessibilityRole="button" accessibilityLabel={expanded ? '收起配置' : '展开配置'}
@@ -288,7 +288,7 @@ function CheckRow({ label, checked, last, onPress }: { label: string; checked: b
 }
 
 const n = StyleSheet.create({
-  changeCard: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: '#dfe3e7', overflow: 'hidden' },
+  changeCard: { minWidth: 0 },
   changeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 13, paddingRight: 8, paddingVertical: 9, minHeight: 46 },
   changeToggle: { width: 32, height: 32, borderRadius: 10, backgroundColor: color.mintSurface, alignItems: 'center', justifyContent: 'center' },
   changeCaption: { marginHorizontal: 13, marginBottom: 4 },

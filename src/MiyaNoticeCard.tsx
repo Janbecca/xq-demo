@@ -5,8 +5,10 @@ import { media, twoDigits } from './demo';
 import type { MiyaNotice } from './miyaDemo';
 import { color, Icon, Label, s } from './ui';
 
-export function MiyaNoticeCard({ notice, controls }: {
+export function MiyaNoticeCard({ notice, controls, showMenu = true, inBubble = false }: {
   notice: MiyaNotice;
+  showMenu?: boolean;
+  inBubble?: boolean;
   controls?: {
     read: (id: string) => void; play: (sample: PlaybackSample) => void;
     manage: (notice: MiyaNotice) => void; addEvent: (notice: MiyaNotice) => void;
@@ -17,6 +19,7 @@ export function MiyaNoticeCard({ notice, controls }: {
   const time = `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`;
   const day = `${twoDigits(date.getMonth() + 1)}.${twoDigits(date.getDate())}`;
   const when = `${date.toDateString() === new Date().toDateString() ? '今天' : day} ${time}`;
+  const title = notice.title ?? notice.event;
 
   function handleNotice(action: () => void) {
     setMenuOpen(false);
@@ -25,15 +28,15 @@ export function MiyaNoticeCard({ notice, controls }: {
   }
 
   const thumbnail = <Image source={media.frame} style={n.image} resizeMode="cover" accessible={false} />;
-  return <View style={[s.card, n.card]}>
-    <View style={[n.body, controls && n.bodyWithMenu]}>
+  return <View style={[s.card, n.card, inBubble && n.inBubble]}>
+    <View style={[n.body, controls && showMenu && n.bodyWithMenu]}>
       <View style={n.details}>
-        <Label size={17} bold>{notice.event}</Label>
+        <Label size={17} bold>{title}</Label>
         <Label size={12} tint={color.secondaryText}>{notice.deviceName} · {when}</Label>
         {!!notice.description && <Label size={13}>{notice.description}</Label>}
       </View>
-      {controls ? <Pressable accessibilityRole="button" accessibilityLabel={`回看通知 ${notice.event}，${notice.deviceName}，${when}`}
-        onPress={() => handleNotice(() => controls.play({ title: notice.event, time: `${day} ${time}` }))}
+      {controls ? <Pressable accessibilityRole="button" accessibilityLabel={`回看通知 ${title}，${notice.deviceName}，${when}`}
+        onPress={() => handleNotice(() => controls.play({ title, time: `${day} ${time}` }))}
         style={({ pressed }) => [n.thumbnail, pressed && s.pressed]}>
         {thumbnail}
         <View style={n.play}><Icon name="play" size={14} tint="#fff" /></View>
@@ -41,19 +44,19 @@ export function MiyaNoticeCard({ notice, controls }: {
     </View>
     <View style={n.source}>
       <Label size={12} tint={color.secondaryText} style={n.sourceText}>
-        {notice.fromFollowed === false ? '默认事件通知' : <>来自关注 <Label size={12} tint={color.mintText}>「{notice.event}」</Label></>}
+        {notice.fromFollowed === false ? '默认事件通知' : <>来自关注 <Label size={12} tint={color.mintText}>「{title}」</Label></>}
       </Label>
-      {controls && <Pressable accessibilityRole="button" accessibilityLabel={`管理关注事件 ${notice.event}`}
+      {controls && <Pressable accessibilityRole="button" accessibilityLabel={`管理关注事件 ${title}`}
         hitSlop={5} onPress={() => handleNotice(() => controls.manage(notice))} style={({ pressed }) => [n.manage, pressed && s.pressed]}>
         <Label size={12} tint={color.mintText}>管理</Label>
       </Pressable>}
     </View>
-    {controls && <Pressable accessibilityRole="button" accessibilityLabel={`${notice.event}通知操作`}
+    {controls && showMenu && <Pressable accessibilityRole="button" accessibilityLabel={`${title}通知操作`}
       accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(open => !open)}
       style={({ pressed }) => [s.iconButton, n.menuButton, menuOpen && n.activeMenu, pressed && s.pressed]}>
       <Icon name="ellipsis-horizontal" size={18} tint={menuOpen ? color.mintText : color.secondaryText} />
     </Pressable>}
-    {controls && menuOpen && <View style={n.actions}>
+    {controls && showMenu && menuOpen && <View style={n.actions}>
       <Pressable accessibilityRole="button" style={({ pressed }) => [n.action, pressed && s.pressed]}
         onPress={() => handleNotice(() => controls.addEvent(notice))}>
         <Label size={13}>新增关注事件</Label>
@@ -64,6 +67,7 @@ export function MiyaNoticeCard({ notice, controls }: {
 
 const n = StyleSheet.create({
   card: { paddingHorizontal: 13, paddingTop: 13, paddingBottom: 7, gap: 9, borderWidth: 1, borderColor: '#dfe3e7' },
+  inBubble: { backgroundColor: 'transparent', borderWidth: 0 },
   body: { flexDirection: 'row', alignItems: 'center', minHeight: 60, gap: 8 },
   bodyWithMenu: { paddingRight: 24 },
   details: { flex: 1, minWidth: 0, gap: 5 },

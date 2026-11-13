@@ -52,6 +52,7 @@ export type MiyaClip = {
 export type MiyaNotice = {
   id: string;
   event: string;
+  title?: string;
   taskId?: string;
   deviceName: string;
   createdAt: number;
@@ -67,12 +68,15 @@ export type MiyaTaskChange = {
   noticeId?: string;
   expanded?: boolean;
 };
+export const demoPackageNotice = {
+  event: '有人把快递放在门口', title: '包裹出现', description: '有人把包裹放在门口，离开时没有带走。',
+};
 export const demoNoticeEvents = [
   { event: demoNoticeEvent, description: '画面中有人抬起一只手。' },
   { event: '小孩写作业', description: '孩子坐在桌前翻开作业本并写字。' },
   { event: '宠物吃饭/喝水', description: '宠物走到食碗旁进食。' },
   { event: '老人跌倒', description: '画面中的老人失去平衡后倒在地上。' },
-  { event: '有人把快递放在门口', description: '有人将一个快递包裹放在门口后离开。' },
+  demoPackageNotice,
 ];
 type SummaryEntry = { text: string; time?: string; device?: MiyaCamera };
 type Topic = { id: string; title: string; description: string; clipIds: string[]; count?: number; attention?: boolean };
@@ -117,9 +121,9 @@ const summaryDays: Record<string, MiyaDay> = {
   },
   [summaryYesterday]: {
     updatedAt: '17:00', updating: true,
-    entries: [{ time: '16:40', device: 'camera', text: '小孩在桌前写作业。' }],
+    entries: [{ time: '12:14', device: 'camera', text: '老人开始用餐。' }, { time: '16:40', device: 'camera', text: '小孩在桌前写作业。' }],
     extra: ['后续活动正在整理，已整理的片段可在当天活动中回看。'],
-    clips: [homework], groups: ['室内活动 · 3条'],
+    clips: [dayClips[1], homework], groups: ['室内活动 · 3条'],
     topics: [{ id: 'learning', title: '孩童学习', description: '下午记录到小孩在桌前写作业。', clipIds: ['homework'] }],
   },
   '2026-11-06': {

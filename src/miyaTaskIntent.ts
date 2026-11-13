@@ -1,5 +1,5 @@
 import { weekdays, type Time } from './demo';
-import { channels, defaultTask, demoNoticeEvent, maxCustomMinutes, spanMinutes, type MiyaNotice, type MiyaTask, type MiyaTaskChange } from './miyaDemo';
+import { channels, defaultTask, demoNoticeEvent, demoPackageNotice, maxCustomMinutes, spanMinutes, type MiyaNotice, type MiyaTask, type MiyaTaskChange } from './miyaDemo';
 import { findMiyaEvents } from './miyaEvents';
 
 export function linkedNoticeTask(tasks: MiyaTask[], notice: MiyaNotice) {
@@ -62,7 +62,9 @@ export function interpretTaskRequest(question: string, tasks: MiyaTask[], id: st
   const removing = /不再关注|取消关注|停止关注|不要再推送|不再推送/.test(question);
   const explicitlyAdding = adding || /^(?:我想关注|想关注|新增关注|添加关注|新建|帮我关注|关注)/.test(question);
   const known = [...new Set([...tasks.flatMap(task => task.events), demoNoticeEvent])];
+  const packageEvent = /包裹出现|门口.*(?:包裹|快递)|(?:包裹|快递).*门口/.test(question) ? [demoPackageNotice.event] : [];
   const matches = [...new Set([
+    ...packageEvent,
     ...known.filter(event => question.includes(event)),
     ...findMiyaEvents(question.replace(/不再关注|取消关注|停止关注|不要再推送|不再推送/g, '')).map(match => match.event),
   ])];

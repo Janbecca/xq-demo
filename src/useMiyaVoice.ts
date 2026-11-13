@@ -54,12 +54,10 @@ export function useMiyaVoice(active: boolean, onText: (text: string) => void) {
     };
   }, [active, cancel]);
 
-  async function toggle() {
-    if (sessionRef.current) {
-      sessionRef.current.stop();
-      return;
-    }
-    if (!active) return;
+  const stop = () => sessionRef.current?.stop();
+
+  async function start() {
+    if (!active || sessionRef.current) return;
     if (activeSession) {
       setMessage('上一段语音正在结束，请稍后重试。');
       return;
@@ -83,6 +81,7 @@ export function useMiyaVoice(active: boolean, onText: (text: string) => void) {
     let started = false;
     let listening = false;
     let stopping = false;
+    let stopRequested = false;
     let cancelled = false;
     let transcript = '';
     let error = '';
@@ -114,7 +113,11 @@ export function useMiyaVoice(active: boolean, onText: (text: string) => void) {
 
     const session: VoiceSession = {
       stop() {
-        if (!listening || stopping || cancelled) return;
+        if (stopping || cancelled) return;
+        if (!listening) {
+          stopRequested = true;
+          return;
+        }
         stopping = true;
         setStatus('stopping');
         waitForEnd();
@@ -149,12 +152,17 @@ export function useMiyaVoice(active: boolean, onText: (text: string) => void) {
           finish();
           return;
         }
+        if (stopRequested) {
+          finish();
+          return;
+        }
       }
       subscriptions.push(
         speech.addListener('start', () => {
           if (activeSession !== session || cancelled || stopping) return;
           listening = true;
-          setStatus('listening');
+          if (stopRequested) session.stop();
+          else setStatus('listening');
         }),
         speech.addListener('result', result => {
           if (activeSession !== session || cancelled || !result.isFinal) return;
@@ -177,5 +185,6 @@ export function useMiyaVoice(active: boolean, onText: (text: string) => void) {
     }
   }
 
-  return { status, message, toggle, cancel };
+  const toggle = () => sessionRef.current ? stop() : start();
+  return { status, message, start, stop, toggle, cancel };
 }
